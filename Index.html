@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       background-color: #f7fafc;
@@ -492,7 +494,12 @@
     </details>
   </div>
   <div class="bg-white rounded-lg shadow-md p-4 relative">
-    <div class="absolute top-4 right-4 z-10 flex space-x-2"><button onclick="zoom(0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold">+</button><button onclick="zoom(-0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold">-</button></div>
+    <div class="absolute top-4 right-4 z-10 flex space-x-2">
+      <button onclick="exportChart('png')" title="Export as PNG" class="bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" /></svg>PNG</button>
+      <button onclick="exportChart('pdf')" title="Export as PDF" class="bg-red-600 text-white py-2 px-4 rounded-lg text-sm font-semibold hover:bg-red-700 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>PDF</button>
+      <button onclick="zoom(0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold text-xl flex items-center justify-center">+</button>
+      <button onclick="zoom(-0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold text-xl flex items-center justify-center">-</button>
+    </div>
     <div id="chart-wrapper" class="w-full h-[85vh] overflow-auto">
       <div id="loader-container" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-20">
         <div id="loader"></div>
@@ -1344,6 +1351,84 @@ function renderNotifications(data) {
   }
   function zoom(amount) { currentZoom = Math.max(0.2, currentZoom + amount); document.getElementById('chart_div').style.transform = 'scale(' + currentZoom + ')'; }
   function toTitleCase(str) { if (!str) return ''; return str.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); }); }
+
+  function exportChart(format) {
+    const chartContainer = document.getElementById('chart_div');
+    const departmentFilter = document.getElementById('department-filter');
+    let departmentName = departmentFilter.options[departmentFilter.selectedIndex].text;
+
+    if (departmentName === 'All Departments' || departmentName === 'Loading...' || !departmentName) {
+      departmentName = 'OrgChart';
+    }
+    const fileName = `${departmentName.replace(/ /g, '_')}_${new Date().toISOString().slice(0,10)}.${format}`;
+
+    showSavingOverlay();
+    const savingText = document.getElementById('saving-text');
+    savingText.textContent = 'Preparing Export...';
+
+    // --- CLONING LOGIC ---
+    const cloneContainer = document.createElement('div');
+    cloneContainer.style.position = 'absolute';
+    cloneContainer.style.left = '-9999px';
+    cloneContainer.style.top = '0px';
+    cloneContainer.style.zIndex = '-1';
+
+    const chartClone = chartContainer.cloneNode(true);
+    chartClone.style.transform = ''; // Remove zoom from clone
+
+    // Set container size to the full scroll size of the original chart
+    cloneContainer.style.width = chartContainer.scrollWidth + 'px';
+    cloneContainer.style.height = chartContainer.scrollHeight + 'px';
+
+    cloneContainer.appendChild(chartClone);
+    document.body.appendChild(cloneContainer);
+
+    setTimeout(() => {
+        html2canvas(chartClone, {
+            useCORS: true,
+            scale: 2, // Higher resolution
+            width: chartContainer.scrollWidth,
+            height: chartContainer.scrollHeight
+        }).then(canvas => {
+            if (format === 'png') {
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else if (format === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const imgData = canvas.toDataURL('image/png');
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const orientation = canvasWidth > canvasHeight ? 'l' : 'p';
+                const pdf = new jsPDF(orientation, 'px', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const margin = 40;
+                const availableWidth = pdfWidth - (margin * 2);
+                const availableHeight = pdfHeight - (margin * 2);
+                const widthScale = availableWidth / canvasWidth;
+                const heightScale = availableHeight / canvasHeight;
+                const scale = Math.min(widthScale, heightScale);
+                const finalImgWidth = canvasWidth * scale;
+                const finalImgHeight = canvasHeight * scale;
+                const x = (pdfWidth - finalImgWidth) / 2;
+                const y = (pdfHeight - finalImgHeight) / 2;
+                pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
+                pdf.save(fileName);
+            }
+        }).catch(err => {
+            console.error("Export failed:", err);
+            alert("An error occurred during the export. Please check the console for details.");
+        }).finally(() => {
+            document.body.removeChild(cloneContainer);
+            hideSavingOverlay();
+            savingText.textContent = 'Saving...';
+        });
+    }, 250);
+  }
 
   // --- MODAL & DATA MANAGEMENT FUNCTIONS ---
 
