@@ -1357,6 +1357,27 @@ function renderNotifications(data) {
     const departmentFilter = document.getElementById('department-filter');
     let departmentName = departmentFilter.options[departmentFilter.selectedIndex].text;
 
+    // --- TITLE GENERATION LOGIC ---
+    const divisionFilter = document.getElementById('division-filter');
+    const groupFilter = document.getElementById('group-filter');
+    const sectionFilter = document.getElementById('section-filter');
+
+    let titleText = "Company Organizational Chart"; // Default title
+    const sectionName = sectionFilter.options[sectionFilter.selectedIndex].text;
+    const deptName = departmentFilter.options[departmentFilter.selectedIndex].text;
+    const groupName = groupFilter.options[groupFilter.selectedIndex].text;
+    const divisionName = divisionFilter.options[divisionFilter.selectedIndex].text;
+
+    if (sectionFilter.value !== 'all') {
+        titleText = `Section: ${sectionName}`;
+    } else if (departmentFilter.value !== 'all') {
+        titleText = `Department: ${deptName}`;
+    } else if (groupFilter.value !== 'all') {
+        titleText = `Group: ${groupName}`;
+    } else if (divisionFilter.value !== 'all') {
+        titleText = `Division: ${divisionName}`;
+    }
+
     if (departmentName === 'All Departments' || departmentName === 'Loading...' || !departmentName) {
       departmentName = 'OrgChart';
     }
@@ -1366,29 +1387,38 @@ function renderNotifications(data) {
     const savingText = document.getElementById('saving-text');
     savingText.textContent = 'Preparing Export...';
 
-    // --- CLONING LOGIC ---
+    // --- CLONING LOGIC MODIFIED FOR TITLE ---
     const cloneContainer = document.createElement('div');
     cloneContainer.style.position = 'absolute';
     cloneContainer.style.left = '-9999px';
     cloneContainer.style.top = '0px';
     cloneContainer.style.zIndex = '-1';
+    cloneContainer.style.padding = '20px';
+    cloneContainer.style.backgroundColor = 'white';
+
+    const captureWrapper = document.createElement('div');
+
+    const titleElement = document.createElement('h1');
+    titleElement.textContent = titleText;
+    titleElement.style.fontSize = '28px';
+    titleElement.style.fontWeight = 'bold';
+    titleElement.style.textAlign = 'center';
+    titleElement.style.marginBottom = '24px';
+    titleElement.style.fontFamily = 'Roboto, sans-serif';
 
     const chartClone = chartContainer.cloneNode(true);
-    chartClone.style.transform = ''; // Remove zoom from clone
+    chartClone.style.transform = '';
 
-    // Set container size to the full scroll size of the original chart
-    cloneContainer.style.width = chartContainer.scrollWidth + 'px';
-    cloneContainer.style.height = chartContainer.scrollHeight + 'px';
+    captureWrapper.appendChild(titleElement);
+    captureWrapper.appendChild(chartClone);
 
-    cloneContainer.appendChild(chartClone);
+    cloneContainer.appendChild(captureWrapper);
     document.body.appendChild(cloneContainer);
 
     setTimeout(() => {
-        html2canvas(chartClone, {
+        html2canvas(captureWrapper, {
             useCORS: true,
-            scale: 2, // Higher resolution
-            width: chartContainer.scrollWidth,
-            height: chartContainer.scrollHeight
+            scale: 2,
         }).then(canvas => {
             if (format === 'png') {
                 const link = document.createElement('a');
