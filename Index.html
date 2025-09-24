@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Organizational Chart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {
+      background-color: #f7fafc;
+      font-family: 'Roboto', sans-serif;
+    }
+    details>summary {
+      list-style: none;
+    }
+    details>summary::-webkit-details-marker {
+      display: none;
+    }
+    .google-visualization-orgchart-node-medium {
+      padding: 0 !important;
+      border: none !important;
+      background: none !important;
+      box-shadow: none !important;
+    }
+    .node-card {
+      position: relative;
+      display: inline-flex;
+      align-items: flex-start;
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      min-width: 320px;
+      width: auto;
+      border: 2px solid;
+      text-align: left;
+    }
+    .node-card:hover .node-actions {
+      display: flex;
+    }
+    .node-card img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      margin-right: 12px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .node-text {
+      flex-grow: 1;
+      margin-right: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .node-text .name,
+    .node-text .title,
+    .node-text .dept {
+      white-space: nowrap;
+    }
+    .node-text .name {
+      font-weight: 700;
+      font-size: 15px;
+      color: #334155;
+    }
+    .node-text .title {
+      font-size: 13px;
+      color: #2563eb;
+    }
+    .node-text .dept {
+      font-size: 12px;
+      color: #718096;
+      font-style: italic;
+      margin-top: 2px;
+    }
+    .badge-grid {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .badge {
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .bg-badge-payroll {
+      background-color: #3b82f6;
+      color: white;
+    }
+    .bg-badge-joblevel {
+      background-color: #facc15;
+      color: black;
+    }
+    .bg-badge-contract {
+      background-color: #1e40af;
+      color: white;
+    }
+    .bg-badge-competency {
+      background-color: #ef4444;
+      color: white;
+    }
+    .level-1-border { border-color: #000000; }
+    .level-2-border { border-color: #f56565; }
+    .level-3-border { border-color: #4299e1; }
+    .level-4-border { border-color: #48bb78; }
+    .level-5-border { border-color: #9f7aea; }
+    .level-6-border { border-color: #ed8936; }
+    .level-default-border { border-color: #a0aec0; }
+    .level-1-bg { background-color: #f3f4f6; }
+    .level-2-bg { background-color: #fee2e2; }
+    .level-3-bg { background-color: #dbeafe; }
+    .level-4-bg { background-color: #dcfce7; }
+    .level-5-bg { background-color: #f3e8ff; }
+    .level-6-bg { background-color: #fff7ed; }
+    .level-default-bg { background-color: #f1f5f9; }
+    .contract-jrel-jpro-border { border-color: #f97316; }
+    .contract-jrel-jpro-bg { background-color: #ffedd5; }
+    .contract-jreg-border { border-color: #3b82f6; }
+    .contract-jreg-bg { background-color: #dbeafe; }
+    .contract-others-border { border-color: #6b7280; }
+    .contract-others-bg { background-color: #e5e7eb; }
+    .contract-dashed { border-style: dashed !important; border-width: 2px !important; }
+    .vacant-card {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      min-width: 280px;
+      width: auto;
+      border: 2px dashed #9ca3af;
+      background-color: #f9fafb;
+    }
+    .vacant-card:hover .node-actions {
+      display: flex;
+    }
+    .status-dot {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+    }
+    .bg-new-hire { background-color: #22c55e; }
+    .bg-filled-vacancy { background-color: #3b82f6; }
+    .bg-internal-transfer { background-color: #8b5cf6; }
+    .bg-promotion { background-color: #f59e0b; }
+    .bg-lateral-transfer { background-color: #0ea5e9; }
+    .plantilla-over { background-color: #fee2e2; }
+    .plantilla-at { background-color: #f1f5f9; }
+    #custom-tooltip {
+      position: absolute;
+      display: none;
+      background-color: white;
+      border-width: 2px;
+      border-style: solid;
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      padding: 12px;
+      min-width: 280px;
+      z-index: 1000;
+    }
+    #custom-tooltip img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: block;
+      margin: 0 auto 10px;
+      border-width: 3px;
+      border-style: solid;
+    }
+    #custom-tooltip p {
+      margin: 0 0 2px 0;
+      font-size: 12px;
+      color: #2d3748;
+    }
+    #custom-tooltip p strong {
+      font-weight: 700;
+      color: #4a5568;
+      display: inline-block;
+      width: 110px;
+    }
+    #loader {
+      border: 8px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 8px solid #4338ca;
+      width: 60px;
+      height: 60px;
+      animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    .node-actions {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      display: none;
+      gap: 4px;
+      z-index: 10;
+    }
+    .action-btn {
+      background-color: white;
+      border: 1px solid #d1d5db;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+    }
+    .action-btn:hover {
+      background-color: #f9fafb;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 24px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .searchable-dropdown {
+      position: relative;
+    }
+    .searchable-dropdown-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .searchable-dropdown-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-top: none;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .searchable-dropdown-list div {
+      padding: 8px;
+      cursor: pointer;
+    }
+    .searchable-dropdown-list div:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="saving-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9998; flex-direction: column; align-items: center; justify-content: center;">
+  <div id="loader"></div>
+  <p id="saving-text" class="text-white text-lg font-bold mt-4">Saving...</p>
+</div>
+
+<div id="employee-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="flex justify-between items-center mb-4">
+      <h2 id="modal-title" class="text-2xl font-bold text-slate-800">Edit Employee</h2>
+      <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+    </div>
+    <form id="employee-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <input type="hidden" id="form-mode" name="formmode">
+      <input type="hidden" id="original-status" name="originalstatus">
+      <div>
+        <label class="block font-medium">Position ID</label>
+        <input type="text" id="positionid" name="positionid" readonly class="mt-1 p-2 w-full border rounded bg-gray-100">
+        <label class="block font-medium mt-2">Employee ID</label>
+        <input type="text" id="employeeid" name="employeeid" class="mt-1 p-2 w-full border rounded">
+        <label class="block font-medium mt-2">Employee Name</label>
+        <input type="text" id="employeename" name="employeename" class="mt-1 p-2 w-full border rounded">
+        <label class="block font-medium mt-2">Reporting to</label>
+        <div id="reportingto-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="reportingtoid" name="reportingtoid">
+        <input type="hidden" id="reportingto" name="reportingto">
+        <label class="block font-medium text-xs mt-1">Reporting to ID</label>
+        <input type="text" id="reportingtoid_display" readonly class="mt-1 p-2 w-full border rounded bg-gray-100 text-sm">
+      </div>
+      <div>
+        <label class="block font-medium">Division <span class="text-red-500">*</span></label>
+        <div id="division-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="division" name="division">
+        <label class="block font-medium mt-2">Group</label>
+        <div id="group-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="group" name="group">
+        <label class="block font-medium mt-2">Department <span class="text-red-500">*</span></label>
+        <div id="department-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="department" name="department">
+        <label class="block font-medium mt-2">Section <span class="text-red-500">*</span></label>
+        <div id="section-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="section" name="section">
+      </div>
+      <div>
+        <label class="block font-medium">Job Title <span class="text-red-500">*</span></label>
+        <div id="jobtitle-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="jobtitle" name="jobtitle">
+        <label class="block font-medium mt-2">Level</label>
+        <div id="level-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="level" name="level">
+        <label class="block font-medium mt-2">Payroll Type</label>
+        <div id="payrolltype-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="payrolltype" name="payrolltype">
+        <label class="block font-medium mt-2">Job Level</label>
+        <div id="joblevel-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="joblevel" name="joblevel">
+        <label class="block font-medium mt-2">Contract Type</label>
+        <div id="contracttype-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="contracttype" name="contracttype">
+        <div id="contract-end-date-wrapper" style="display: none;">
+            <label class="block font-medium mt-2">Contract End Date <span class="text-red-500">*</span></label>
+            <input type="date" id="contractenddate" name="contractenddate" class="mt-1 p-2 w-full border rounded">
+        </div>
+        <label class="block font-medium mt-2">Competency</label>
+        <div id="competency-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="competency" name="competency">
+        <label class="block font-medium mt-2">Status</label>
+        <div id="status-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="status" name="status">
+        <div id="start-date-wrapper" style="display: none;">
+          <label class="block font-medium mt-2">Start Date in Position <span class="text-red-500">*</span></label>
+          <input type="date" id="startdateinposition" name="startdateinposition" class="mt-1 p-2 w-full border rounded">
+        </div>
+        <div id="effective-date-wrapper" style="display: none;">
+          <label id="effective-date-label" class="block font-medium mt-2"></label>
+          <input type="date" id="effectivedate" name="effectivedate" class="mt-1 p-2 w-full border rounded">
+        </div>
+        <label class="block font-medium mt-2">Gender</label>
+        <div id="gender-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="gender" name="gender">
+        <label class="block font-medium mt-2">Position Status</label>
+        <div id="positionstatus-dropdown-container" class="searchable-dropdown"></div>
+        <input type="hidden" id="positionstatus" name="positionstatus">
+        <label class="block font-medium mt-2">Date Hired</label>
+        <input type="date" id="datehired" name="datehired" class="mt-1 p-2 w-full border rounded">
+      </div>
+    </form>
+    <div class="mt-6 flex justify-end gap-3">
+      <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+      <button onclick="saveEmployee()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="history-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="flex justify-between items-center mb-4">
+      <h2 id="history-modal-title" class="text-2xl font-bold text-slate-800">Incumbency History</h2>
+      <button onclick="closeHistoryModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Incumbent Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date in Position</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date in Position</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenure in Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Hire Date</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body" class="bg-white divide-y divide-gray-200">
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-6 flex justify-end">
+      <button onclick="closeHistoryModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="custom-tooltip" onmouseover="clearTimeout(tooltipTimeout)" onmouseout="hideTooltip()"></div>
+
+<div id="app" class="p-4 sm:p-6 md:p-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-slate-800">Interactive Organizational Chart</h1>
+    <button id="add-employee-btn" onclick="openModal('add')" class="hidden bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">Add New Position</button>
+  </div>
+
+  <div id="notifications-container" class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+  <div class="p-4 sm:p-6 rounded-lg mb-6 bg-white shadow-md">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-4">
+      <div><label for="division-filter" class="block text-sm font-medium text-gray-700">Filter by Division</label><select id="division-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
+      <div><label for="group-filter" class="block text-sm font-medium text-gray-700">Filter by Group</label><select id="group-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
+      <div><label for="department-filter" class="block text-sm font-medium text-gray-700">Filter by Department</label><select id="department-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
+      <div><label for="section-filter" class="block text-sm font-medium text-gray-700">Filter by Section</label><select id="section-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
+    </div>
+    <button id="reset-filters-btn" class="w-full bg-slate-700 text-white py-2 mt-4 rounded-lg hover:bg-slate-800">Reset Filters</button>
+  </div>
+  <div id="headcount-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div id="filtered-headcount-card" class="bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow"></div>
+    <div id="plantilla-headcount-card" class="bg-gray-100 border-l-4 border-gray-500 text-gray-800 p-4 rounded-md shadow"></div>
+  </div>
+  <div class="space-y-4 mb-6">
+    <details class="bg-white rounded-lg shadow-md group">
+      <summary class="w-full text-left p-4 flex justify-between items-center font-bold text-xl text-slate-800 cursor-pointer"><span>Overall Headcount Summary</span><svg class="w-6 h-6 transition-transform transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary>
+      <div id="overall-summary-content" class="p-4 border-t border-gray-200">
+        <p>Loading summary...</p>
+      </div>
+    </details>
+  </div>
+  <div class="space-y-4 mb-6">
+    <details class="bg-white rounded-lg shadow-md group">
+      <summary class="w-full text-left p-4 flex justify-between items-center font-bold text-xl text-slate-800 cursor-pointer"><span>Legends</span><svg class="w-6 h-6 transition-transform transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary>
+      <div class="p-4 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <h3 class="font-bold text-lg mb-3 text-slate-700">Badge Legend</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center">
+                <div class="badge bg-badge-payroll mr-2">P</div>Payroll Type
+              </div>
+              <div class="flex items-center">
+                <div class="badge bg-badge-joblevel mr-2">JL</div>Job Level
+              </div>
+              <div class="flex items-center">
+                <div class="badge bg-badge-contract mr-2">C</div>Contract Type
+              </div>
+              <div class="flex items-center">
+                <div class="badge bg-badge-competency mr-2">C</div>Competency
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-3 text-slate-700">Box legend</h3>
+            <div id="level-legend" class="space-y-2 text-sm"></div>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-3 text-slate-700">Jobcon Contract Type Legend</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center">
+                <div class="w-4 h-4 mr-2 border-2 border-dashed" style="border-color: #f97316; background-color: #ffedd5;"></div>
+                <span>JREL / JPRO</span>
+              </div>
+              <div class="flex items-center">
+                <div class="w-4 h-4 mr-2 border-2 border-dashed" style="border-color: #3b82f6; background-color: #dbeafe;"></div>
+                <span>JREG</span>
+              </div>
+              <div class="flex items-center">
+                <div class="w-4 h-4 mr-2 border-2 border-dashed" style="border-color: #6b7280; background-color: #e5e7eb;"></div>
+                <span>OTHERS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+  <div class="space-y-4 mb-6">
+    <details class="bg-white rounded-lg shadow-md group" open>
+      <summary class="w-full text-left p-4 flex justify-between items-center font-bold text-xl text-slate-800 cursor-pointer"><span>Approval Status</span><svg class="w-6 h-6 transition-transform transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary>
+      <div id="approval-section" class="p-4 border-t border-gray-200">
+        <p>Loading approval status...</p>
+      </div>
+    </details>
+  </div>
+  <div class="bg-white rounded-lg shadow-md p-4 relative">
+    <div class="absolute top-4 right-4 z-10 flex space-x-2"><button onclick="zoom(0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold">+</button><button onclick="zoom(-0.1)" class="bg-slate-600 text-white w-8 h-8 rounded-full font-bold">-</button></div>
+    <div id="chart-wrapper" class="w-full h-[85vh] overflow-auto">
+      <div id="loader-container" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-20">
+        <div id="loader"></div>
+      </div>
+      <div id="chart_div" style="transform-origin: top left;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- GLOBAL VARIABLES ---
+  var fullEmployeeData = [];
+  var previousHeadcountData = {};
+  var dropdownListData = {};
+  var snapshotTimestamp = null;
+  var currentUserEmail = null;
+  var userCanEdit = false;
+  var totalApprovedPlantilla = 0;
+  var previousDateString = null;
+  var employeeMap = new Map();
+  var chart;
+  var dataTable;
+  var currentZoom = 1.0;
+  var tooltipTimeout;
+
+  // --- CONSTANTS & CONFIG ---
+  var levelColors = { 1: '#000000', 2: '#f56565', 3: '#4299e1', 4: '#48bb78', 5: '#9f7aea', 6: '#ed8936', 'default': '#a0aec0' };
+  var levelNames = { 1: 'Executive', 2: 'Director', 3: 'Managerial', 4: 'Supervisory', 5: 'Associate', 6: 'Jobcon' };
+  var ICONS = { toggle: '<svg class="w-5 h-6 transition-transform transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>', filled: '<svg class="w-5 h-5 text-green-600 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>', vacant: '<svg class="w-5 h-5 text-gray-400 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>', previous: '<svg class="w-5 h-5 text-gray-500 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>'};
+  var statusColors = { 'New Hire': 'bg-new-hire', 'Filled Vacancy': 'bg-filled-vacancy', 'Internal Transfer': 'bg-internal-transfer', 'Promotion': 'bg-promotion', 'Lateral Transfer': 'bg-lateral-transfer' };
+  var statusNotes = { 'New Hire': 'This employee is new to the company.', 'Filled Vacancy': 'This employee filled a previously vacant position.', 'Internal Transfer': 'This employee transferred from another role within the company.', 'Promotion': 'This employee was promoted from another role within the company.', 'Lateral Transfer': 'This employee transferred from a similar role within the company.' };
+  var statusTagColors = { 'New Hire': '#22c55e', 'Filled Vacancy': '#3b82f6', 'Internal Transfer': '#8b5cf6', 'Promotion': '#f59e0b', 'Lateral Transfer': '#0ea5e9' };
+
+  // --- INITIALIZATION ---
+  google.charts.load('current', { packages: ['orgchart'] });
+  google.charts.setOnLoadCallback(fetchData);
+
+  function showLoader() { document.getElementById('loader-container').style.display = 'flex'; }
+  function hideLoader() { document.getElementById('loader-container').style.display = 'none'; }
+  
+  function fetchData() {
+    showLoader();
+    google.script.run.withSuccessHandler(onDataFetched).withFailureHandler(onFetchError).getEmployeeData();
+    google.script.run.withSuccessHandler(lists => dropdownListData = lists).getListsForDropdowns();
+    google.script.run.withSuccessHandler(renderNotifications).getUpcomingDues();
+  }
+
+  function onDataFetched(data) {
+    if (!data) {
+      hideLoader();
+      console.error('Error: Fetched data is null. The backend script may have encountered a critical error.');
+      document.getElementById('chart_div').innerHTML = '<p class="text-red-600 p-4 font-bold">Error: Could not load data from the server. This can happen if a required sheet is missing or if there is a data formatting error (e.g., text in a date column). Please check the Apps Script logs for details.</p>';
+      return;
+    }
+  
+    fullEmployeeData = data.current;
+    previousHeadcountData = data.previous;
+    snapshotTimestamp = data.snapshotTimestamp;
+    currentUserEmail = data.currentUserEmail;
+    userCanEdit = data.canEdit;
+    totalApprovedPlantilla = data.totalApprovedPlantilla;
+    previousDateString = data.previousDateString;
+    employeeMap = new Map(fullEmployeeData.map(emp => [emp.nodeId, emp]));
+
+    if(userCanEdit) {
+      document.getElementById('add-employee-btn').style.display = 'block';
+    }
+
+    populateLevelLegend();
+    setupEventListeners();
+    updateAndPopulateFilters(true);
+    updateUI();
+  }
+
+  function onFetchError(error) {
+    hideLoader();
+    console.error('Error fetching data:', error);
+    document.getElementById('chart_div').innerHTML = '<p>Error: ' + error.message + '</p>';
+  }
+
+  // --- UI & DATA RENDERING ---
+
+  function getDirectFilteredCount() {
+    var division = document.getElementById('division-filter').value;
+    var group = document.getElementById('group-filter').value;
+    var department = document.getElementById('department-filter').value;
+    var section = document.getElementById('section-filter').value;
+    return fullEmployeeData.filter(function(emp) {
+      return (emp.positionStatus || '').toLowerCase() !== 'inactive' &&
+      (division === 'all' || emp.division === division) &&
+      (group === 'all' || emp.group === group) &&
+      (department === 'all' || emp.department === department) &&
+      (section === 'all' || emp.section === section);
+    });
+  }
+
+  function updateUI() {
+    showLoader();
+    setTimeout(function() {
+      try {
+        const filteredData = getDirectFilteredCount();
+        renderHeadcountCards(filteredData);
+        renderSummary(filteredData);
+        renderApprovalSection();
+        drawChart(filteredData);
+      } catch(e) {
+        console.error("Error during UI update:", e);
+        document.getElementById('overall-summary-content').innerHTML = `<p class="text-red-500">A critical error occurred while rendering the summary. Please check the console (F12) for details.</p>`;
+        document.getElementById('chart_div').innerHTML = `<p class="text-red-500">A critical error occurred while rendering the chart. Please check the console (F12) for details.</p>`;
+      } finally {
+        hideLoader();
+      }
+    }, 10);
+  }
+  
+  function getPlantillaForLevel(div, group, dept, sec) {
+    if (!previousHeadcountData) return null;
+    
+    const get = (p, o) => p.reduce((xs, x) => (xs && xs[x]) ? xs[x] : null, o);
+
+    if (sec && sec !== 'all') {
+      for (const divKey in previousHeadcountData) {
+        if (div !== 'all' && divKey !== div) continue;
+        for (const groupKey in get([divKey, 'groups'], previousHeadcountData)) {
+          if (group !== 'all' && groupKey !== group) continue;
+          for (const deptKey in get([divKey, 'groups', groupKey, 'departments'], previousHeadcountData)) {
+            if (dept !== 'all' && deptKey !== dept) continue;
+            const sectionData = get([divKey, 'groups', groupKey, 'departments', deptKey, 'sections', sec], previousHeadcountData);
+            if (sectionData) return sectionData.plantilla;
+          }
+        }
+      }
+      return null;
+    }
+
+    if (dept && dept !== 'all') {
+      let total = 0;
+      let found = false;
+      for (const divKey in previousHeadcountData) {
+        if (div !== 'all' && divKey !== div) continue;
+        for (const groupKey in get([divKey, 'groups'], previousHeadcountData)) {
+          if (group !== 'all' && groupKey !== group) continue;
+          const deptData = get([divKey, 'groups', groupKey, 'departments', dept], previousHeadcountData);
+          if (deptData) {
+            total += deptData.plantilla || 0;
+            found = true;
+          }
+        }
+      }
+      return found ? total : null;
+    }
+    
+    if (group && group !== 'all') {
+      let total = 0;
+      let found = false;
+      for (const divKey in previousHeadcountData) {
+        if (div !== 'all' && divKey !== div) continue;
+        const groupData = get([divKey, 'groups', group], previousHeadcountData);
+        if (groupData) {
+          total += groupData.plantilla || 0;
+          found = true;
+        }
+      }
+      return found ? total : null;
+    }
+
+    if (div && div !== 'all') {
+      const divData = get([div], previousHeadcountData);
+      return divData ? divData.plantilla : null;
+    }
+
+    return totalApprovedPlantilla;
+  }
+
+  function renderHeadcountCards(filteredData) {
+    const filledCount = filteredData.filter(p => !!p.employeeId).length;
+    const vacantCount = filteredData.length - filledCount;
+    const headcountCard = document.getElementById('filtered-headcount-card');
+    headcountCard.innerHTML =
+      '<h3 class="font-bold text-lg mb-2">Filtered Headcount</h3>' +
+      '<p class="text-3xl font-bold">' + filteredData.length + '</p>' +
+      '<p class="text-sm mt-1">Filled: ' + filledCount + ', Vacant: ' + vacantCount + '</p>';
+    const plantillaCard = document.getElementById('plantilla-headcount-card');
+
+    const division = document.getElementById('division-filter').value;
+    const group = document.getElementById('group-filter').value;
+    const department = document.getElementById('department-filter').value;
+    const section = document.getElementById('section-filter').value;
+
+    const filteredPlantilla = getPlantillaForLevel(division, group, department, section);
+
+    if (filteredPlantilla === null || filteredPlantilla === undefined) {
+      plantillaCard.innerHTML =
+      '<h3 class="font-bold text-lg mb-2">Approved Plantilla</h3>' +
+      '<p class="text-3xl font-bold text-gray-400">N/A</p>' +
+      '<p class="text-sm mt-1">No plantilla data for this filter.</p>';
+      plantillaCard.className = 'bg-gray-100 border-l-4 border-gray-400 text-gray-800 p-4 rounded-md shadow';
+    } else {
+      const variance = filteredData.length - filteredPlantilla;
+      let varianceText = '';
+      let cardClass = '';
+      if (variance > 0) {
+        varianceText = '<p class="text-sm mt-1 font-bold">Over by ' + variance + '</p>';
+        cardClass = 'bg-red-100 border-l-4 border-red-500 text-red-800 p-4 rounded-md shadow';
+      } else if (variance < 0) {
+        varianceText = '<p class="text-sm mt-1 font-bold">Under by ' + (-variance) + '</p>';
+        cardClass = 'bg-green-100 border-l-4 border-green-500 text-green-800 p-4 rounded-md shadow';
+      } else {
+        varianceText = '<p class="text-sm mt-1 font-bold">Matches Plantilla</p>';
+        cardClass = 'bg-gray-100 border-l-4 border-gray-500 text-gray-800 p-4 rounded-md shadow';
+      }
+      plantillaCard.innerHTML =
+        '<h3 class="font-bold text-lg mb-2">Approved Plantilla</h3>' +
+        '<p class="text-3xl font-bold">' + filteredPlantilla + '</p>' +
+        varianceText;
+      plantillaCard.className = cardClass;
+    }
+  }
+
+  function drawChart(filteredData) {
+    var chartDataForDisplay = getChartData(filteredData);
+    if (chartDataForDisplay.length === 0) {
+        document.getElementById('chart_div').innerHTML = '<p class="text-center text-gray-500 pt-10">No positions match filter.</p>';
+        return;
+    }
+    dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'Node ID');
+    dataTable.addColumn('string', 'Reporting to ID');
+    chartDataForDisplay.forEach(function(emp) {
+        let nodeHtml;
+        let actionsHtml = '';
+        if (userCanEdit) {
+            actionsHtml = `<div class="node-actions">
+                                <button title="Edit" onclick="event.stopPropagation(); openModal('edit', '${emp.nodeId}')" class="action-btn">
+                                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM5 14l-1 4 4-1 7.586-7.586-2.828-2.828L5 14z"></path></svg>
+                                </button>
+                                <button title="Deactivate" onclick="event.stopPropagation(); deactivateEmployee('${emp.positionId}')" class="action-btn">
+                                  <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg>
+                                </button>
+                              </div>`;
+        }
+
+        if (emp.employeeId) {
+            let resignTag = '';
+            if (emp.status.toUpperCase() === 'RESIGNED' && emp.resignationDate) {
+                resignTag = `<div style="position: absolute; top: 4px; left: 4px; background-color: #ef4444; color: white; padding: 2px 6px; border-radius: 9999px; font-size: 10px; font-weight: bold; z-index: 5;">
+                                RESIGNEE (Eff. ${emp.resignationDate})
+                              </div>`;
+            }
+        
+            const contractTypeUpper = emp.stylingContractType ? emp.stylingContractType.toUpperCase() : '';
+            let levelBorderClass = `level-${emp.level || 'default'}-border`;
+            let levelBgClass = `level-${emp.level || 'default'}-bg`;
+            let contractClass = '';
+            if (contractTypeUpper === 'JREL' || contractTypeUpper === 'JPRO') {
+                levelBorderClass = 'contract-jrel-jpro-border';
+                levelBgClass = 'contract-jrel-jpro-bg';
+                contractClass = 'contract-dashed';
+            } else if (contractTypeUpper === 'JREG') {
+                levelBorderClass = 'contract-jreg-border';
+                levelBgClass = 'contract-jreg-bg';
+                contractClass = 'contract-dashed';
+            } else if (contractTypeUpper === 'OTHERS') {
+                levelBorderClass = 'contract-others-border';
+                levelBgClass = 'contract-others-bg';
+                contractClass = 'contract-dashed';
+            }
+            const photoUrl = emp.gender && emp.gender.toLowerCase() === 'female' ? 'https://i.imgur.com/dTvdfy0.png' : 'https://i.imgur.com/bIbZ89x.png';
+            const deptSection = emp.section ? `${emp.department} (${emp.section})` : emp.department;
+            const payrollBadge = emp.payrollType ? `<div class="badge bg-badge-payroll">${emp.payrollType}</div>` : '';
+            const jobLevelBadge = emp.jobLevel ? `<div class="badge bg-badge-joblevel">${emp.jobLevel}</div>` : '';
+            const contractBadge = emp.contractType ? `<div class="badge bg-badge-contract">${emp.contractType}</div>` : '';
+            const competencyBadge = emp.competency ? `<div class="badge bg-badge-competency">${emp.competency}</div>` : '';
+            const badgeHtml = `<div class="badge-grid">${payrollBadge}${jobLevelBadge}${contractBadge}${competencyBadge}</div>`;
+            const normalizedStatus = toTitleCase(emp.status);
+            const statusClass = statusColors[normalizedStatus] || '';
+            const statusDot = statusClass && !resignTag ? `<div class="status-dot ${statusClass}"></div>` : '';
+            
+            nodeHtml = `<div class="node-card ${levelBorderClass} ${levelBgClass} ${contractClass}" onmouseover="showTooltip(event, '${emp.nodeId}')" onmouseout="hideTooltip()">
+                          ${resignTag}${statusDot}${actionsHtml}
+                          <img src="${photoUrl}" onerror="this.onerror=null;this.src='https://i.imgur.com/RHvayzz.png';">
+                          <div class="node-text">
+                            <div class="name">${emp.employeeName}</div>
+                            <div class="title">${emp.jobTitle}</div>
+                            <div class="dept">${deptSection || ''}</div>
+                          </div>
+                          ${badgeHtml}
+                        </div>`;
+        } else {
+            nodeHtml = `<div class="vacant-card" onmouseover="showTooltip(event, '${emp.nodeId}')" onmouseout="hideTooltip()">
+                          ${actionsHtml}
+                          <div class="name">VACANT</div>
+                          <div class="title">${emp.jobTitle}</div>
+                        </div>`;
+        }
+        dataTable.addRow([{ v: emp.nodeId, f: nodeHtml }, emp.managerId]);
+    });
+    chart = new google.visualization.OrgChart(document.getElementById('chart_div'));
+    chart.draw(dataTable, { allowHtml: true, allowCollapse: true });
+  }
+
+  function showTooltip(event, nodeId) {
+    clearTimeout(tooltipTimeout);
+    var employee = employeeMap.get(nodeId); if (!employee) return;
+    var tooltipDiv = document.getElementById('custom-tooltip');
+    var contentHtml = '';
+    var borderColor;
+    var borderStyle = 'solid';
+    var history = employee.historicalNote || {};
+    if (employee.employeeId) {
+      var contractTypeUpper = employee.stylingContractType ? employee.stylingContractType.toUpperCase() : '';
+      if (contractTypeUpper === 'JREL' || contractTypeUpper === 'JPRO') {
+        borderColor = '#f97316';
+        borderStyle = 'dashed';
+      } else if (contractTypeUpper === 'JREG') {
+        borderColor = '#3b82f6';
+        borderStyle = 'dashed';
+      } else if (contractTypeUpper === 'OTHERS') {
+        borderColor = '#6b7280';
+        borderStyle = 'dashed';
+      } else {
+        borderColor = levelColors[employee.level] || levelColors.default;
+        borderStyle = 'solid';
+      }
+      var photoUrl = employee.gender && employee.gender.toLowerCase() === 'female' ? 'https://i.imgur.com/dTvdfy0.png' : 'https://i.imgur.com/bIbZ89x.png';
+      var imgBorderStyle = 'border-color:' + borderColor + ';';
+      contentHtml = '<img src="' + photoUrl + '" style="' + imgBorderStyle + '" onerror="this.onerror=null;this.src=\'https://i.imgur.com/RHvayzz.png\';">' +
+      '<p><strong>Position ID:</strong> ' + (employee.positionId || 'N/A') + '</p>' +
+      '<p><strong>Emp. ID:</strong> ' + (employee.employeeId || 'N/A') + '</p>' +
+      '<p><strong>Name:</strong> ' + (employee.employeeName || 'N/A') + '</p>' +
+      '<p><strong>Date Hired:</strong> ' + (employee.dateHired || 'N/A') + '</p>' +
+      '<p><strong>Job Title:</strong> ' + (employee.jobTitle || 'N/A') + '</p>' +
+      '<p><strong>Division:</strong> ' + (employee.division || 'N/A') + '</p>' +
+      '<p><strong>Group:</strong> ' + (employee.group || 'N/A') + '</p>' +
+      '<p><strong>Department:</strong> ' + (employee.department || 'N/A') + '</p>' +
+      '<p><strong>Section:</strong> ' + (employee.section || 'N/A') + '</p>' +
+      '<p><strong>Reporting to:</strong> ' + (employee.managerName || 'N/A') + '</p>';
+      
+      let incumbentHtml = '';
+      if (history.lastIncumbents && history.lastIncumbents.length > 0) {
+        incumbentHtml = history.lastIncumbents[0];
+        if (history.lastIncumbents.length > 0) { 
+          incumbentHtml += ` <span onclick="openHistoryModal('${employee.positionId}')" class="text-blue-600 hover:underline cursor-pointer" style="font-weight: bold;">(View History)</span>`;
+        }
+      } else if (history.isNewPosition) {
+        incumbentHtml = '<i>Newly Created Position</i>';
+      } else {
+        incumbentHtml = '<i>No history available</i>';
+      }
+      contentHtml += '<p><strong>Last Incumbent:</strong> ' + incumbentHtml + '</p>';
+      
+      if (employee.payrollType) contentHtml += '<p><strong>Payroll Type:</strong> ' + employee.payrollType + '</p>';
+      if (employee.jobLevel) contentHtml += '<p><strong>Job Level:</strong> ' + employee.jobLevel + '</p>';
+      if (employee.contractType) contentHtml += '<p><strong>Contract Type:</strong> ' + employee.contractType + '</p>';
+      if (employee.contractEndDate) contentHtml += '<p><strong>Contract End:</strong> ' + employee.contractEndDate + '</p>';
+      if (employee.competency) contentHtml += '<p><strong>Competency:</strong> ' + employee.competency + '</p>';
+      
+      if (employee.status.toUpperCase() === 'RESIGNED' && employee.resignationDate) {
+        contentHtml += '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e5e7eb;">' +
+          '<p><strong>Status:</strong> <span style="color: #ef4444; font-weight: bold;">RESIGNEE</span></p>' +
+          '<p><strong>Effective Date:</strong> ' + employee.resignationDate + '</p>' +
+          '</div>';
+      } else {
+        var normalizedStatus = toTitleCase(employee.status);
+        if (normalizedStatus && statusNotes[normalizedStatus]) {
+          var tagColor = statusTagColors[normalizedStatus];
+          var note = statusNotes[normalizedStatus];
+          var statusNoteHtml = '';
+          if (['Internal Transfer', 'Promotion', 'Lateral Transfer'].includes(normalizedStatus) && history.previousRole) {
+            statusNoteHtml = '<p style="font-size: 11px; color: ' + tagColor + '; padding-left: 18px;"><i>' + history.previousRole + '</i></p>';
+          }
+          contentHtml += '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e5e7eb;">' +
+          '<div style="display: flex; align-items: center; font-weight: bold; color: ' + tagColor + ';">' +
+          '<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ' + tagColor + '; margin-right: 8px;"></span>' + normalizedStatus + '</div>' +
+          '<p style="font-size: 11px; color: #6b7280; margin-top: 2px; padding-left: 18px;">' + note + '</p>' +
+          statusNoteHtml +
+          '</div>';
+        }
+      }
+    } else { // Vacant Node
+      borderColor = '#9ca3af';
+      borderStyle = 'dashed';
+      contentHtml = '<p><strong>Position ID:</strong> ' + (employee.positionId || 'N/A') + '</p>' +
+      '<p><strong>Position:</strong> VACANT</p>' +
+      '<p><strong>Job Title:</strong> ' + (employee.jobTitle || 'N/A') + '</p>' +
+      '<p><strong>Group:</strong> ' + (employee.group || 'N/A') + '</p>' +
+      '<p><strong>Department:</strong> ' + (employee.department || 'N/A') + '</p>';
+      
+      let incumbentHtml = '';
+      if (history.lastIncumbents && history.lastIncumbents.length > 0) {
+        incumbentHtml = history.lastIncumbents[0];
+        if (history.lastIncumbents.length > 0) {
+          incumbentHtml += ` <span onclick="openHistoryModal('${employee.positionId}')" class="text-blue-600 hover:underline cursor-pointer" style="font-weight: bold;">(View History)</span>`;
+        }
+      } else if (history.isNewPosition) {
+        incumbentHtml = '<i>Newly Created Position</i>';
+      } else {
+        incumbentHtml = '<i>No history available</i>';
+      }
+      contentHtml += '<p><strong>Last Incumbent:</strong> ' + incumbentHtml + '</p>';
+    }
+    tooltipDiv.innerHTML = contentHtml;
+    tooltipDiv.style.borderColor = borderColor;
+    tooltipDiv.style.borderStyle = borderStyle;
+    var tooltipHeight = tooltipDiv.offsetHeight;
+    var yPos = event.pageY - tooltipHeight - 15;
+    if (yPos < window.scrollY) {
+      yPos = event.pageY + 20;
+    }
+    var xPos = event.pageX + 15;
+    tooltipDiv.style.left = xPos + 'px';
+    tooltipDiv.style.top = yPos + 'px';
+    tooltipDiv.style.display = 'block';
+  }
+
+  function hideTooltip() { 
+    tooltipTimeout = setTimeout(function() {
+      document.getElementById('custom-tooltip').style.display = 'none';
+    }, 300);
+  }
+
+  function getChartData(filteredData) {
+    var finalSet = new Set();
+    filteredData.forEach(function(pos) {
+      finalSet.add(pos);
+    });
+    var positionsToProcess = Array.from(finalSet);
+    positionsToProcess.forEach(function(pos) {
+      var current = pos;
+      while (current && current.managerId) {
+        var manager = employeeMap.get(current.managerId);
+        if (manager && !finalSet.has(manager)) {
+          finalSet.add(manager);
+          current = manager;
+        } else {
+          break;
+        }
+      }
+    });
+    return Array.from(finalSet);
+  }
+
+  function renderSummary(filteredData) {
+    var summary = {};
+    var groupFilterValue = document.getElementById('group-filter').value;
+    var departmentFilterValue = document.getElementById('department-filter').value;
+    var sectionFilterValue = document.getElementById('section-filter').value;
+
+    filteredData.forEach(function(pos) {
+      if (!pos.division) return;
+      var isFilled = !!pos.employeeId;
+      var groupKey = pos.group || '';
+      var deptKey = pos.department || '';
+      var sectKey = pos.section || '';
+
+      if (!summary[pos.division]) summary[pos.division] = { filled: 0, vacant: 0, groups: {} };
+      if (!summary[pos.division].groups[groupKey]) summary[pos.division].groups[groupKey] = { filled: 0, vacant: 0, departments: {} };
+      if (!summary[pos.division].groups[groupKey].departments[deptKey]) summary[pos.division].groups[groupKey].departments[deptKey] = { filled: 0, vacant: 0, sections: {} };
+      if (!summary[pos.division].groups[groupKey].departments[deptKey].sections[sectKey]) summary[pos.division].groups[groupKey].departments[deptKey].sections[sectKey] = { filled: 0, vacant: 0 };
+      
+      if (isFilled) {
+        summary[pos.division].filled++;
+        summary[pos.division].groups[groupKey].filled++;
+        summary[pos.division].groups[groupKey].departments[deptKey].filled++;
+        summary[pos.division].groups[groupKey].departments[deptKey].sections[sectKey].filled++;
+      } else {
+        summary[pos.division].vacant++;
+        summary[pos.division].groups[groupKey].vacant++;
+        summary[pos.division].groups[groupKey].departments[deptKey].vacant++;
+        summary[pos.division].groups[groupKey].departments[deptKey].sections[sectKey].vacant++;
+      }
+    });
+
+    var getChangeIndicator = function (current, previous, forVacant) {
+      if (typeof previous === 'undefined' || previous === null) return '';
+      var delta = current - previous;
+      if (isNaN(delta) || delta === 0) return '';
+      var sign = delta > 0 ? '+' : '';
+      var color = delta > 0 ? (forVacant ? 'text-red-600' : 'text-green-600') : (forVacant ? 'text-green-600' : 'text-red-600');
+      return ` <span class="font-bold ${color}">(${sign}${delta})</span>`;
+    };
+
+    var container = document.getElementById('overall-summary-content');
+    container.innerHTML = '';
+    var gridContainer = document.createElement('div');
+    gridContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+
+    if (Object.keys(summary).length === 0) {
+      container.innerHTML = '<p class="text-gray-500 col-span-full">No summary data for this filter.</p>';
+      return;
+    }
+
+    const formattedPrevDate = previousDateString;
+
+    var allCardsHtml = Object.keys(summary).sort().map(function (divName) {
+      var divData = summary[divName];
+      var prevDivData = (previousHeadcountData && previousHeadcountData[divName]) ? previousHeadcountData[divName] : {};
+      var total = divData.filled + divData.vacant;
+      var prevTotal = (prevDivData.filled || 0) + (prevDivData.vacant || 0);
+      var plantilla = getPlantillaForLevel(divName, '', '', '');
+      var plantillaStatus = '', plantillaClass = '';
+      if (plantilla !== null && plantilla !== undefined) {
+        if (total > plantilla) {
+          plantillaStatus = `<span class="text-red-700 font-bold ml-2">(Over Plantilla by ${total - plantilla})</span>`;
+          plantillaClass = 'plantilla-over';
+        } else if (total === plantilla) {
+          plantillaStatus = `<span class="text-slate-600 font-bold ml-2">(Plantilla: ${plantilla})</span>`;
+          plantillaClass = 'plantilla-at';
+        } else {
+          plantillaStatus = `<span class="text-slate-500 font-medium ml-2">(Plantilla: ${plantilla})</span>`;
+        }
+      }
+
+      var groupHtmlContent = Object.keys(divData.groups).sort().filter(groupName => groupName).map(function (groupName) {
+        var groupData = divData.groups[groupName];
+        var prevGroupData = (prevDivData.groups && prevDivData.groups[groupName]) ? prevDivData.groups[groupName] : {};
+        var groupTotal = groupData.filled + groupData.vacant;
+        var groupPlantilla = getPlantillaForLevel(divName, groupName, '', '');
+        var groupPlantillaStatus = '', groupPlantillaClass = '';
+        if (groupPlantilla !== null && groupPlantilla !== undefined) {
+          if (groupTotal > groupPlantilla) { groupPlantillaStatus = `<span class="text-red-700 font-bold ml-2">(Over by ${groupTotal - groupPlantilla})</span>`; groupPlantillaClass = 'plantilla-over';}
+          else if (groupTotal === groupPlantilla) { groupPlantillaStatus = `<span class="text-slate-600 font-bold ml-2">(Plantilla: ${groupPlantilla})</span>`; groupPlantillaClass = 'plantilla-at';}
+          else { groupPlantillaStatus = `<span class="text-slate-500 font-medium ml-2">(Plantilla: ${groupPlantilla})</span>`; }
+        }
+
+        var departmentHtml = Object.keys(groupData.departments).sort().filter(deptName => deptName).map(function (deptName) {
+          var deptData = groupData.departments[deptName];
+          var prevDeptData = (prevGroupData.departments && prevGroupData.departments[deptName]) ? prevGroupData.departments[deptName] : {};
+          var deptTotal = deptData.filled + deptData.vacant;
+          var deptPlantilla = getPlantillaForLevel(divName, groupName, deptName, '');
+          var deptPlantillaStatus = '', deptPlantillaClass = '';
+          if (deptPlantilla !== null && deptPlantilla !== undefined) {
+            if (deptTotal > deptPlantilla) { deptPlantillaStatus = `<span class="text-red-700 font-bold ml-2">(${deptTotal}/${deptPlantilla})</span>`; deptPlantillaClass = 'plantilla-over'; }
+            else if (deptTotal === deptPlantilla) { deptPlantillaStatus = `<span class="text-slate-600 font-bold ml-2">(${deptTotal}/${deptPlantilla})</span>`; deptPlantillaClass = 'plantilla-at'; }
+            else { deptPlantillaStatus = `<span class="text-slate-500 font-medium ml-2">(${deptTotal}/${deptPlantilla})</span>`; }
+          }
+
+          var sectionHtml = Object.keys(deptData.sections).sort().filter(secName => secName).map(function (secName) {
+            var secData = deptData.sections[secName];
+            var prevSecData = (prevDeptData.sections && prevDeptData.sections[secName]) ? prevDeptData.sections[secName] : {};
+            var secTotal = secData.filled + secData.vacant;
+            var secPlantilla = getPlantillaForLevel(divName, groupName, deptName, secName);
+            var secPlantillaStatus = '', secPlantillaClass = '';
+            if (secPlantilla !== null && secPlantilla !== undefined) {
+              if (secTotal > secPlantilla) { secPlantillaStatus = `<span class="text-red-700 font-bold ml-2">(${secTotal}/${secPlantilla})</span>`; secPlantillaClass = 'plantilla-over'; }
+              else if (secTotal === secPlantilla) { secPlantillaStatus = `<span class="text-slate-600 font-bold ml-2">(${secTotal}/${secPlantilla})</span>`; secPlantillaClass = 'plantilla-at'; }
+              else { secPlantillaStatus = `<span class="text-slate-500 font-medium ml-2">(${secTotal}/${secPlantilla})</span>`; }
+            }
+            return `<div class="pl-8 pr-4 py-2 border-t border-slate-200 bg-slate-50 hover:bg-slate-100 rounded ${secPlantillaClass}">
+                        <div class="text-xs text-gray-800 flex justify-between items-center">
+                          <div><span class="font-medium">${secName}</span>${secPlantillaStatus}</div>
+                          <span class="italic text-right">Filled: ${secData.filled}${getChangeIndicator(secData.filled, (prevSecData.filled || 0), false)}<br>Vacant: ${secData.vacant}${getChangeIndicator(secData.vacant, (prevSecData.vacant || 0), true)}</span>
+                        </div>
+                        ${formattedPrevDate ? `<div class="text-xs text-gray-500 mt-1"><span>Previous HC: ${(prevSecData.filled || 0) + (prevSecData.vacant || 0)}</span></div>` : ''}
+                      </div>`;
+          }).join('');
+          
+          var hasSections = Object.keys(deptData.sections).filter(k => k).length > 0;
+          return `<div class="border-t"><details class="text-sm group" ${hasSections ? 'open' : ''}>
+            <summary class="flex justify-between items-center cursor-pointer py-2 px-4 hover:bg-slate-100 rounded ${deptPlantillaClass}">
+              <div>
+                <span class="font-medium text-slate-700">${deptName}</span>${deptPlantillaStatus}
+                ${formattedPrevDate ? `<div class="text-xs text-gray-500 mt-1"><span>Previous HC: ${(prevDeptData.filled || 0) + (prevDeptData.vacant || 0)}</span></div>` : ''}
+              </div>
+              <span class="flex items-center">
+                <span class="text-xs text-gray-500 mr-2 italic text-right">Filled: ${deptData.filled}${(sectionFilterValue === 'all') ? getChangeIndicator(deptData.filled, (prevDeptData.filled || 0), false) : ''}<br>Vacant: ${deptData.vacant}${(sectionFilterValue === 'all') ? getChangeIndicator(deptData.vacant, (prevDeptData.vacant || 0), true) : ''}</span>
+                <span class="transform transition-transform group-open:rotate-180">${hasSections ? ICONS.toggle : ''}</span>
+              </span>
+            </summary>
+            <div>${sectionHtml}</div>
+          </details></div>`;
+        }).join('');
+
+        var hasDepartments = Object.keys(groupData.departments).filter(k => k).length > 0;
+        return `<div class="border-t"><details class="group" ${hasDepartments ? 'open' : ''}>
+          <summary class="flex justify-between items-center cursor-pointer p-2 hover:bg-slate-100 rounded ${groupPlantillaClass}">
+            <div>
+              <span class="font-semibold text-blue-800">${groupName}</span>${groupPlantillaStatus}
+              ${formattedPrevDate ? `<div class="text-xs text-gray-500 mt-1"><span>Previous HC: ${(prevGroupData.filled || 0) + (prevGroupData.vacant || 0)}</span></div>` : ''}
+            </div>
+            <span class="flex items-center">
+              <span class="text-xs text-gray-500 mr-2 italic text-right">Filled: ${groupData.filled}${(departmentFilterValue === 'all') ? getChangeIndicator(groupData.filled, (prevGroupData.filled || 0), false) : ''}<br>Vacant: ${groupData.vacant}${(departmentFilterValue === 'all') ? getChangeIndicator(groupData.vacant, (prevGroupData.vacant || 0), true) : ''}</span>
+              <span class="transform transition-transform group-open:rotate-180">${hasDepartments ? ICONS.toggle : ''}</span>
+            </span>
+          </summary>
+          <div class="pl-4">${departmentHtml}</div>
+        </details></div>`;
+      }).join('');
+
+      var totalChangeHtml = (groupFilterValue === 'all') ? getChangeIndicator(total, prevTotal, false) : '';
+      var filledChangeHtml = (groupFilterValue === 'all') ? getChangeIndicator(divData.filled, prevDivData.filled, false) : '';
+      var vacantChangeHtml = (groupFilterValue === 'all') ? getChangeIndicator(divData.vacant, prevDivData.vacant, true) : '';
+
+      return `<details class="border rounded-lg shadow-sm bg-white group">
+        <summary class="p-4 cursor-pointer ${plantillaClass} rounded-lg">
+          <div class="flex justify-between items-center">
+            <h4 class="font-bold text-lg text-indigo-800">${divName} (${total})${totalChangeHtml}${plantillaStatus}</h4>
+            <span class="transform transition-transform group-open:rotate-180">${ICONS.toggle}</span>
+          </div>
+          ${formattedPrevDate ? `<div class="flex items-center text-sm text-gray-500 mt-1 px-4">${ICONS.previous}<span>Previous Headcount as of ${formattedPrevDate}: ${prevTotal}</span></div>` : ''}
+        </summary>
+        <div class="border-t">
+          <div class="p-4 space-y-2">
+            <div class="flex items-center">${ICONS.filled}<span>Filled Positions:</span><span class="ml-auto font-bold">${divData.filled}${filledChangeHtml}</span></div>
+            <div class="flex items-center">${ICONS.vacant}<span>Vacant Positions:</span><span class="ml-auto font-bold">${divData.vacant}${vacantChangeHtml}</span></div>
+          </div>
+          <div class="border-t">
+            <h5 class="px-4 pt-2 pb-1 font-bold text-sm text-slate-700">Group Breakdown</h5>
+            ${groupHtmlContent}
+          </div>
+        </div>
+      </details>`;
+    }).join('');
+
+    gridContainer.innerHTML = allCardsHtml;
+    container.appendChild(gridContainer);
+  }
+
+  function populateLevelLegend() {
+    var legendContainer = document.getElementById('level-legend');
+    legendContainer.innerHTML = '';
+    var levelBgColors = { 1: '#f3f4f6', 2: '#fee2e2', 3: '#dbeafe', 4: '#dcfce7', 5: '#f3e8ff', 6: '#fff7ed', 'default': '#f1f5f9' };
+    for (var level in levelColors) {
+      if (levelColors.hasOwnProperty(level) && level !== 'default') {
+        var color = levelColors[level];
+        var name = levelNames[level] || 'Level ' + level;
+        var borderStyle = 'solid';
+        var bgColor = levelBgColors[level] || levelBgColors.default;
+        if (level == 6) {
+          color = '#000000';
+          bgColor = '#ffffff';
+          borderStyle = 'dashed';
+        }
+        legendContainer.innerHTML += '<div class="flex items-center"><div class="w-4 h-4 mr-2 border-2" style="border-color: ' + color + '; background-color: ' + bgColor + '; border-style: ' + borderStyle + ';"></div>' + name + '</div>';
+      }
+    }
+    legendContainer.innerHTML += '<div class="flex items-center"><div class="w-4 h-4 mr-2 border-2 border-dashed" style="border-color: #9ca3af; background-color: #f9fafb;"></div>Vacant</div>';
+  }
+
+  /**
+ * REVISED NOTIFICATION FUNCTION
+ * Renders separate, side-by-side cards for "Upcoming" and "Overdue" notifications.
+ * Dynamically adjusts layout if only one card is present.
+ */
+function renderNotifications(data) {
+  const container = document.getElementById('notifications-container');
+  container.innerHTML = ''; // Clear previous notifications
+
+  const { upcoming, overdue } = data || {};
+
+  const hasUpcoming = upcoming && upcoming.length > 0;
+  const hasOverdue = overdue && overdue.length > 0;
+
+  // If there are no notifications at all, do nothing
+  if (!hasUpcoming && !hasOverdue) {
+    return;
+  }
+
+  let upcomingHtml = '';
+  let overdueHtml = '';
+
+  // Build Upcoming Reminders card (Left)
+  if (hasUpcoming) {
+    const listItems = upcoming.map(item => `<li class="ml-4 list-disc">${item}</li>`).join('');
+    // If it's the only card, it should span the full width
+    const colSpanClass = hasOverdue ? '' : 'md:col-span-2';
+    upcomingHtml = `
+      <div class="${colSpanClass}">
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md shadow-md h-full" role="alert">
+          <div class="flex">
+            <div class="py-1"><svg class="fill-current h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8v2h2v-2H9z"/></svg></div>
+            <div>
+              <p class="font-bold">Upcoming Reminders</p>
+              <ul class="mt-2 text-sm">${listItems}</ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Build Action Required card (Right)
+  if (hasOverdue) {
+    const listItems = overdue.map(item => `<li class="ml-4 list-disc">${item}</li>`).join('');
+    // If it's the only card, it should span the full width
+    const colSpanClass = hasUpcoming ? '' : 'md:col-span-2';
+    overdueHtml = `
+      <div class="${colSpanClass}">
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-800 p-4 rounded-md shadow-md h-full" role="alert">
+          <div class="flex">
+            <div class="py-1"><svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM9 9a1 1 0 0 0 2 0V7a1 1 0 1 0-2 0v2zm0 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0z"/></svg></div>
+            <div>
+              <p class="font-bold">Action Required (Overdue)</p>
+              <ul class="mt-2 text-sm">${listItems}</ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Set the container's HTML with the cards in the correct order
+  container.innerHTML = upcomingHtml + overdueHtml;
+}
+
+
+  function renderApprovalSection() {
+    const container = document.getElementById('approval-section');
+    const department = document.getElementById('department-filter').value;
+    if (department === 'all') {
+      container.innerHTML = '<p class="text-gray-500">Please select a specific department to view its approval status.</p>';
+      return;
+    }
+    container.innerHTML = '<p>Loading approval status...</p>';
+    google.script.run
+      .withSuccessHandler(function(data) {
+        renderApprovalBoxes(data, department);
+      })
+      .withFailureHandler(function(err) {
+        container.innerHTML = '<p class="text-red-500">Could not retrieve approval data. Error: ' + err.message + '</p>';
+      })
+      .getApprovalData(department);
+  }
+  
+  function renderApprovalBoxes(data, department) {
+      const container = document.getElementById('approval-section');
+      if (!data) {
+          container.innerHTML = `<p class="text-red-500">Could not retrieve approval data. Please try again.</p>`;
+          return;
+      }
+      const { approvers, approvalStatus } = data;
+      if (!approvalStatus || !approvalStatus['Snapshot Date']) {
+          container.innerHTML = `<p class="text-gray-500">No approval record found for ${department}. Please run a new snapshot.</p>`;
+          return;
+      }
+      
+      const roles = ['Prepared By', 'Reviewed By', 'Noted By', 'Approved By'];
+      let previousRoleSigned = true;
+      let buttonHasBeenShown = false;
+
+      const boxesHtml = roles.map(role => {
+          const approverEmail = approvers[role];
+          const signedName = approvalStatus[role];
+          const signedDate = approvalStatus[role.replace(' ', ' Date')];
+          const formattedDate = signedDate ? new Date(signedDate).toLocaleDateString() : '';
+          
+          let contentHtml = '';
+          if (signedName) {
+              contentHtml = `
+                  <div class="flex-grow flex items-center justify-center"><p class="text-lg font-bold text-slate-800">${signedName}</p></div>
+                  <p class="text-xs text-gray-500 mt-1">${formattedDate}</p>
+              `;
+              previousRoleSigned = true;
+          } else {
+              let buttonHtml = '';
+              if (previousRoleSigned && !buttonHasBeenShown && currentUserEmail === approverEmail) {
+                  const escapedRole = role.replace(/'/g, "\\'");
+                  const escapedDepartment = department.replace(/'/g, "\\'");
+                  buttonHtml = `<button onclick="signApproval('${escapedRole}', '${escapedDepartment}')" class="mt-2 w-full bg-blue-600 text-white py-1 rounded hover:bg-blue-700 text-sm">Sign as ${role}</button>`;
+                  buttonHasBeenShown = true;
+              }
+              contentHtml = `
+                  <div class="flex-grow flex items-center justify-center"><p class="text-gray-400 text-sm">Pending Signature</p></div>
+                  ${buttonHtml}
+              `;
+              previousRoleSigned = false;
+          }
+          
+          return `
+              <div class="border rounded-lg p-3 text-center flex flex-col">
+                  <div class="text-sm font-bold text-gray-600 mb-2">${role}</div>
+                  ${contentHtml}
+              </div>
+          `;
+      }).join('');
+
+      container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">${boxesHtml}</div>`;
+  }
+
+  function signApproval(role, department) {
+    if (!confirm('Are you sure you want to sign for the ' + department + ' department as "' + role + '"? This action cannot be undone.')) {
+      return;
+    }
+    showLoader();
+    google.script.run
+      .withSuccessHandler(function(responseMessage) {
+        hideLoader();
+        alert(responseMessage);
+        renderApprovalSection();
+      })
+      .withFailureHandler(function(error) {
+        hideLoader();
+        alert('Error: ' + error.message);
+      })
+      .recordApproval(role, department);
+  }
+
+  // --- FILTERS AND EVENT LISTENERS ---
+  function setupEventListeners() {
+    document.getElementById('division-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
+    document.getElementById('group-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
+    document.getElementById('department-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
+    document.getElementById('section-filter').addEventListener('change', updateUI);
+    document.getElementById('reset-filters-btn').addEventListener('click', resetFilters);
+  }
+
+  function updateAndPopulateFilters(isInitialLoad) {
+    var divisionFilter = document.getElementById('division-filter');
+    var groupFilter = document.getElementById('group-filter');
+    var departmentFilter = document.getElementById('department-filter');
+    var sectionFilter = document.getElementById('section-filter');
+    var populateSelect = function(element, options, defaultLabel) {
+      var currentValue = element.value;
+      element.innerHTML = '';
+      element.add(new Option(defaultLabel, 'all'));
+      options.forEach(function(opt) { element.add(new Option(opt, opt)); });
+      var valueExists = options.some(function(opt) { return opt === currentValue; });
+      if (valueExists && !isInitialLoad) {
+        element.value = currentValue;
+      } else {
+        element.value = 'all';
+      }
+    };
+    if (isInitialLoad) {
+      var uniqueDivisions = [...new Set(fullEmployeeData.map(function(e) { return e.division; }).filter(String))].sort();
+      populateSelect(divisionFilter, uniqueDivisions, 'All Divisions');
+    }
+    var selectedDivision = divisionFilter.value;
+    var groupData = (selectedDivision === 'all') ? fullEmployeeData : fullEmployeeData.filter(function(e) { return e.division === selectedDivision; });
+    var uniqueGroups = [...new Set(groupData.map(function(e) { return e.group; }).filter(String))].sort();
+    populateSelect(groupFilter, uniqueGroups, 'All Groups');
+    var selectedGroup = groupFilter.value;
+    var departmentData = (selectedGroup === 'all') ? groupData : groupData.filter(function(e) { return e.group === selectedGroup; });
+    var uniqueDepartments = [...new Set(departmentData.map(function(e) { return e.department; }).filter(String))].sort();
+    populateSelect(departmentFilter, uniqueDepartments, 'All Departments');
+    var selectedDepartment = departmentFilter.value;
+    var sectionData = (selectedDepartment === 'all') ? departmentData : departmentData.filter(function(e) { return e.department === selectedDepartment; });
+    var uniqueSections = [...new Set(sectionData.map(function(e) { return e.section; }).filter(String))].sort();
+    populateSelect(sectionFilter, uniqueSections, 'All Sections');
+  }
+
+  function resetFilters() {
+    document.getElementById('division-filter').value = 'all';
+    document.getElementById('group-filter').value = 'all';
+    document.getElementById('department-filter').value = 'all';
+    document.getElementById('section-filter').value = 'all';
+    updateAndPopulateFilters(false);
+    updateUI();
+  }
+  function zoom(amount) { currentZoom = Math.max(0.2, currentZoom + amount); document.getElementById('chart_div').style.transform = 'scale(' + currentZoom + ')'; }
+  function toTitleCase(str) { if (!str) return ''; return str.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); }); }
+
+  // --- MODAL & DATA MANAGEMENT FUNCTIONS ---
+
+  function openModal(mode, nodeId) {
+    const form = document.getElementById('employee-form');
+    form.reset();
+    document.getElementById('form-mode').value = mode;
+
+    document.getElementById('employeename').addEventListener('input', handleEmployeeNameInput);
+    document.getElementById('startdateinposition').addEventListener('input', syncNewHireDate);
+    
+    document.getElementById('effective-date-wrapper').style.display = 'none';
+    document.getElementById('effectivedate').required = false;
+    document.getElementById('start-date-wrapper').style.display = 'none';
+    document.getElementById('startdateinposition').required = false;
+    document.getElementById('contract-end-date-wrapper').style.display = 'none';
+    document.getElementById('contractenddate').required = false;
+
+    let statusOptions = [...(dropdownListData.status || [])];
+    if (!statusOptions.includes('VACANT')) {
+      statusOptions.push('VACANT');
+    }
+    // --- NEW: Add Transfer/Promotion statuses to the dropdown ---
+    if (!statusOptions.includes('PROMOTION')) {
+      statusOptions.push('PROMOTION');
+    }
+    if (!statusOptions.includes('INTERNAL TRANSFER')) {
+      statusOptions.push('INTERNAL TRANSFER');
+    }
+    statusOptions.sort();
+
+    createSearchableDropdown('jobtitle-dropdown-container', dropdownListData.jobtitle || [], null, null, (sel) => { document.getElementById('jobtitle').value = sel; });
+    createSearchableDropdown('level-dropdown-container', dropdownListData.level || [], null, null, (sel) => { document.getElementById('level').value = sel; });
+    createSearchableDropdown('payrolltype-dropdown-container', dropdownListData.payrolltype || [], null, null, (sel) => { document.getElementById('payrolltype').value = sel; });
+    createSearchableDropdown('joblevel-dropdown-container', dropdownListData.joblevel || [], null, null, (sel) => { document.getElementById('joblevel').value = sel; });
+    createSearchableDropdown('contracttype-dropdown-container', dropdownListData.contracttype || [], null, null, (sel) => { 
+        document.getElementById('contracttype').value = sel; 
+        const endDateWrapper = document.getElementById('contract-end-date-wrapper');
+        const endDateInput = document.getElementById('contractenddate');
+        if (sel && sel.toUpperCase() === 'JPRO') {
+            endDateWrapper.style.display = 'block';
+            endDateInput.required = true;
+        } else {
+            endDateWrapper.style.display = 'none';
+            endDateInput.required = false;
+            endDateInput.value = '';
+        }
+    });
+    createSearchableDropdown('competency-dropdown-container', dropdownListData.competency || [], null, null, (sel) => { document.getElementById('competency').value = sel; });
+    createSearchableDropdown('status-dropdown-container', statusOptions, null, null, (sel) => { 
+      document.getElementById('status').value = sel; 
+      const selUpper = sel ? sel.toUpperCase() : '';
+      
+      const effectiveDateWrapper = document.getElementById('effective-date-wrapper');
+      const effectiveDateLabel = document.getElementById('effective-date-label');
+      const effectiveDateInput = document.getElementById('effectivedate');
+
+      const showResignedDate = selUpper === 'RESIGNED';
+      const showVacantDate = selUpper === 'VACANT' && document.getElementById('form-mode').value === 'edit';
+
+      if (showResignedDate) {
+        effectiveDateLabel.innerHTML = 'Effective Resignation Date <span class="text-red-500">*</span>';
+        effectiveDateWrapper.style.display = 'block';
+        effectiveDateInput.required = true;
+      } else if (showVacantDate) {
+        effectiveDateLabel.innerHTML = 'Effective Date Position Became Vacant <span class="text-red-500">*</span>';
+        effectiveDateWrapper.style.display = 'block';
+        effectiveDateInput.required = true;
+      } else {
+        effectiveDateWrapper.style.display = 'none';
+        effectiveDateInput.required = false;
+      }
+
+      if (selUpper === 'VACANT') {
+        document.getElementById('employeeid').value = '';
+        document.getElementById('employeename').value = '';
+        document.getElementById('datehired').value = '';
+        document.getElementById('contractenddate').value = '';
+        setSearchableDropdownValue('gender-dropdown-container', '');
+      }
+
+      const startDateWrapper = document.getElementById('start-date-wrapper');
+      const startDateInput = document.getElementById('startdateinposition');
+      const statusesRequiringStartDate = ['NEW HIRE', 'PROBATIONARY', 'REGULAR', 'PROMOTION', 'INTERNAL TRANSFER', 'LATERAL TRANSFER', 'FILLED VACANCY'];
+      const showStartDateField = statusesRequiringStartDate.includes(selUpper);
+      startDateWrapper.style.display = showStartDateField ? 'block' : 'none';
+      startDateInput.required = showStartDateField;
+    });
+    createSearchableDropdown('gender-dropdown-container', ['Male', 'Female'], null, null, (sel) => { document.getElementById('gender').value = sel; });
+    createSearchableDropdown('positionstatus-dropdown-container', ['Active', 'Inactive'], null, null, (sel) => { document.getElementById('positionstatus').value = sel; });
+    
+    createSearchableDropdown('reportingto-dropdown-container', dropdownListData.managers || [], 'name', 'id', handleManagerSelection);
+    createSearchableDropdown('division-dropdown-container', dropdownListData.divisions || [], null, null, (sel) => updateDependentDropdowns('division', sel));
+    createSearchableDropdown('group-dropdown-container', [], null, null, (sel) => updateDependentDropdowns('group', sel));
+    createSearchableDropdown('department-dropdown-container', [], null, null, (sel) => updateDependentDropdowns('department', sel));
+    createSearchableDropdown('section-dropdown-container', [], null, null, (sel) => { document.getElementById('section').value = sel; handleIdGeneration(); });
+
+    if (mode === 'add') {
+      document.getElementById('modal-title').textContent = 'Add New Position';
+      document.getElementById('positionid').value = 'Select Division/Section...';
+      document.getElementById('original-status').value = '';
+    } else {
+      document.getElementById('modal-title').textContent = 'Edit Position / Employee';
+      const employee = employeeMap.get(nodeId);
+      if (!employee) {
+        alert('Could not find employee data.');
+        return;
+      }
+      document.getElementById('original-status').value = employee.status || '';
+      document.getElementById('positionid').value = employee.positionId || '';
+      document.getElementById('employeeid').value = employee.employeeId || '';
+      document.getElementById('employeename').value = employee.employeeName || '';
+      document.getElementById('datehired').value = employee.dateHired || '';
+      document.getElementById('contractenddate').value = employee.contractEndDate || '';
+
+      setSearchableDropdownValue('reportingto-dropdown-container', employee.managerName || '');
+      document.getElementById('reportingtoid').value = employee.managerEmployeeId || '';
+      document.getElementById('reportingtoid_display').value = employee.managerEmployeeId || '';
+      document.getElementById('reportingto').value = employee.managerName || '';
+
+      setSearchableDropdownValue('jobtitle-dropdown-container', employee.jobTitle || '');
+      setSearchableDropdownValue('level-dropdown-container', employee.level || '');
+      setSearchableDropdownValue('payrolltype-dropdown-container', employee.payrollType || '');
+      setSearchableDropdownValue('joblevel-dropdown-container', employee.jobLevel || '');
+      
+      setSearchableDropdownValue('contracttype-dropdown-container', employee.contractType || '');
+      const contractTypeInput = document.querySelector('#contracttype-dropdown-container .searchable-dropdown-input');
+      if (contractTypeInput) {
+        setTimeout(() => contractTypeInput.dispatchEvent(new Event('change')), 0);
+      }
+      
+      setSearchableDropdownValue('competency-dropdown-container', employee.competency || '');
+      setSearchableDropdownValue('status-dropdown-container', employee.status || '');
+      setSearchableDropdownValue('gender-dropdown-container', employee.gender || '');
+      setSearchableDropdownValue('positionstatus-dropdown-container', employee.positionStatus || '');
+
+      setSearchableDropdownValue('division-dropdown-container', employee.division || '', true);
+      updateDependentDropdowns('division', employee.division, employee);
+    }
+    document.getElementById('employee-modal').style.display = 'flex';
+  }
+  
+  function syncNewHireDate(event) {
+    const status = document.getElementById('status').value;
+    if (status && status.toUpperCase() === 'NEW HIRE') {
+        document.getElementById('datehired').value = event.target.value;
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('employee-modal').style.display = 'none';
+    document.getElementById('employeename').removeEventListener('input', handleEmployeeNameInput);
+    document.getElementById('startdateinposition').removeEventListener('input', syncNewHireDate);
+  }
+  
+  function openHistoryModal(positionId) {
+    const modal = document.getElementById('history-modal');
+    const title = document.getElementById('history-modal-title');
+    const tableBody = document.getElementById('history-table-body');
+    
+    title.textContent = `Incumbency History for ${positionId}`;
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Loading history...</td></tr>`;
+    modal.style.display = 'flex';
+    
+    google.script.run
+      .withSuccessHandler(populateHistoryModal)
+      .withFailureHandler(err => {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Error loading history: ${err.message}</td></tr>`;
+      })
+      .getDetailedIncumbencyHistory(positionId);
+  }
+
+  function populateHistoryModal(historyData) {
+    const tableBody = document.getElementById('history-table-body');
+    tableBody.innerHTML = '';
+    
+    if (!historyData || historyData.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-500">No incumbency history found for this position.</td></tr>`;
+      return;
+    }
+
+    historyData.forEach(record => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.name}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.startDate}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.endDate}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.tenure}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 italic">${record.employeeHireDate}</td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }
+
+  function closeHistoryModal() {
+    document.getElementById('history-modal').style.display = 'none';
+  }
+
+  function showSavingOverlay() {
+    document.getElementById('loader').style.display = 'block';
+    document.getElementById('saving-text').textContent = 'Saving...';
+    document.getElementById('saving-overlay').style.display = 'flex';
+  }
+
+  function hideSavingOverlay() {
+    document.getElementById('saving-overlay').style.display = 'none';
+  }
+
+  function saveEmployee() {
+    const data = {
+      formmode: document.getElementById('form-mode').value,
+      positionid: document.getElementById('positionid').value,
+      employeeid: document.getElementById('employeeid').value,
+      employeename: document.getElementById('employeename').value,
+      reportingtoid: document.getElementById('reportingtoid').value,
+      reportingto: document.getElementById('reportingto').value,
+      division: document.getElementById('division').value,
+      group: document.getElementById('group').value,
+      department: document.getElementById('department').value,
+      section: document.getElementById('section').value,
+      jobtitle: document.getElementById('jobtitle').value,
+      level: document.getElementById('level').value,
+      payrolltype: document.getElementById('payrolltype').value,
+      joblevel: document.getElementById('joblevel').value,
+      contracttype: document.getElementById('contracttype').value,
+      contractenddate: document.getElementById('contractenddate').value,
+      competency: document.getElementById('competency').value,
+      status: document.getElementById('status').value,
+      effectivedate: document.getElementById('effectivedate').value,
+      gender: document.getElementById('gender').value,
+      positionstatus: document.getElementById('positionstatus').value,
+      datehired: document.getElementById('datehired').value,
+      startdateinposition: document.getElementById('startdateinposition').value
+    };
+    const originalStatus = document.getElementById('original-status').value;
+
+    if (!data.positionid || data.positionid.startsWith('Select') || data.positionid.startsWith('ERROR')) {
+      alert('Please ensure a valid Position ID is generated.');
+      return;
+    }
+    if (!data.jobtitle || !data.division || !data.department || !data.section) {
+      alert('Please fill in all required fields (*).');
+      return;
+    }
+    
+    const mode = data.formmode;
+    if (mode === 'edit' && data.employeeid && data.status.toUpperCase() === 'VACANT' && originalStatus.toUpperCase() !== 'RESIGNED') {
+      alert('Incorrect Workflow for Resignation!\n\nTo ensure accurate incumbency history, you must perform this action in two steps:\n\n1. First, change this employee\'s status to "Resigned" and save.\n2. After saving, edit the position again to make it "VACANT".\n\nPlease change the status to "Resigned" for now.');
+      return;
+    }
+
+    if ((data.status.toUpperCase() === 'VACANT' || data.status.toUpperCase() === 'RESIGNED') && mode === 'edit' && !data.effectivedate) {
+      alert('Please provide the Effective Date for this status change.');
+      return;
+    }
+    
+    if (data.contracttype && data.contracttype.toUpperCase() === 'JPRO' && !data.contractenddate) {
+        alert('Please provide the Contract End Date for JPRO employees.');
+        return;
+    }
+
+    const statusUpper = data.status ? data.status.toUpperCase() : '';
+    const statusesRequiringStartDate = ['NEW HIRE', 'PROBATIONARY', 'REGULAR', 'PROMOTION', 'INTERNAL TRANSFER', 'LATERAL TRANSFER', 'FILLED VACANCY'];
+    if (statusesRequiringStartDate.includes(statusUpper) && !data.startdateinposition) {
+      alert('Please provide the Start Date in Position for this status.');
+      return;
+    }
+
+    showSavingOverlay();
+
+    google.script.run
+      .withSuccessHandler(response => {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('saving-text').textContent = 'Success!';
+        
+        setTimeout(() => {
+          closeModal();
+          hideSavingOverlay();
+          fetchData();
+        }, 1000);
+      })
+      .withFailureHandler(error => {
+        hideSavingOverlay();
+        alert('Error: ' + error.message);
+      })
+      .saveEmployeeData(data, mode);
+  }
+
+  function deactivateEmployee(positionId) {
+    if (!confirm(`Are you sure you want to deactivate position ${positionId}? This will mark it as 'Inactive' and remove it from the active chart.`)) {
+      return;
+    }
+    showLoader();
+    google.script.run
+      .withSuccessHandler(response => {
+        fetchData();
+      })
+      .withFailureHandler(error => {
+        hideLoader();
+        alert('Error: ' + error.message);
+      })
+      .deactivatePosition(positionId);
+  }
+
+  function updateDependentDropdowns(level, selectedValue, employeeToLoad) {
+    document.getElementById(level).value = selectedValue;
+
+    if (level === 'division') {
+      const groups = [...new Set(fullEmployeeData.filter(e => e.division === selectedValue).map(e => e.group).filter(String))].sort();
+      createSearchableDropdown('group-dropdown-container', groups, null, null, (sel) => updateDependentDropdowns('group', sel));
+      createSearchableDropdown('department-dropdown-container', [], null, null, (sel) => updateDependentDropdowns('department', sel));
+      createSearchableDropdown('section-dropdown-container', [], null, null, (sel) => { document.getElementById('section').value = sel; handleIdGeneration(); });
+      if(employeeToLoad) {
+        setSearchableDropdownValue('group-dropdown-container', employeeToLoad.group || '', true);
+        updateDependentDropdowns('group', employeeToLoad.group, employeeToLoad);
+      }
+    } else if (level === 'group') {
+      const depts = [...new Set(fullEmployeeData.filter(e => e.group === selectedValue).map(e => e.department).filter(String))].sort();
+      createSearchableDropdown('department-dropdown-container', depts, null, null, (sel) => updateDependentDropdowns('department', sel));
+      createSearchableDropdown('section-dropdown-container', [], null, null, (sel) => { document.getElementById('section').value = sel; handleIdGeneration(); });
+      if(employeeToLoad) {
+        setSearchableDropdownValue('department-dropdown-container', employeeToLoad.department || '', true);
+        updateDependentDropdowns('department', employeeToLoad.department, employeeToLoad);
+      }
+    } else if (level === 'department') {
+      const sects = [...new Set(fullEmployeeData.filter(e => e.department === selectedValue).map(e => e.section).filter(String))].sort();
+      createSearchableDropdown('section-dropdown-container', sects, null, null, (sel) => { document.getElementById('section').value = sel; handleIdGeneration(); });
+      if(employeeToLoad) {
+        setSearchableDropdownValue('section-dropdown-container', employeeToLoad.section || '', true);
+        document.getElementById('section').value = employeeToLoad.section || '';
+      }
+    }
+    handleIdGeneration();
+  }
+
+  function handleManagerSelection(selectedItem) {
+    document.getElementById('reportingtoid').value = selectedItem || '';
+    document.getElementById('reportingtoid_display').value = selectedItem || '';
+    const managerNameInput = document.querySelector('#reportingto-dropdown-container input');
+    document.getElementById('reportingto').value = managerNameInput.value;
+  }
+
+  function handleEmployeeNameInput(event) {
+    if (event.target.value.trim().toUpperCase() === 'VACANT') {
+      const mode = document.getElementById('form-mode').value;
+      setSearchableDropdownValue('status-dropdown-container', 'VACANT');
+      document.getElementById('status').value = 'VACANT';
+      
+      const showEffectiveDateField = (mode === 'edit');
+      document.getElementById('effective-date-wrapper').style.display = showEffectiveDateField ? 'block' : 'none';
+      document.getElementById('effectivedate').required = showEffectiveDateField;
+    }
+  }
+
+  function handleIdGeneration() {
+    const mode = document.getElementById('form-mode').value;
+    if (mode !== 'add') return;
+
+    const division = document.getElementById('division').value;
+    const section = document.getElementById('section').value;
+
+    if (division && section) {
+      document.getElementById('positionid').value = 'Generating...';
+      google.script.run
+      .withSuccessHandler(newId => {
+        document.getElementById('positionid').value = newId;
+      })
+      .generateNewPositionId(division, section);
+    }
+  }
+
+  function createSearchableDropdown(containerId, items, displayKey, valueKey, onSelectCallback) {
+    const container = document.getElementById(containerId);
+    const hiddenInputName = containerId.replace('-dropdown-container', '');
+    const hiddenInput = document.getElementById(hiddenInputName);
+
+    container.innerHTML = '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'searchable-dropdown-input';
+    input.placeholder = 'Type to search...';
+
+    input.addEventListener('change', () => {
+        if (onSelectCallback) {
+            const selectedItem = items.find(item => (displayKey ? item[displayKey] : item) === input.value);
+            const dataValue = selectedItem ? (valueKey ? selectedItem[valueKey] : selectedItem) : input.value;
+            onSelectCallback(dataValue);
+        }
+    });
+
+    input.onblur = () => {
+      setTimeout(() => {
+        const listIsVisible = list.style.display === 'block';
+        if (listIsVisible) return;
+        if (input.value === '') {
+          if (hiddenInput) hiddenInput.value = '';
+          if (containerId === 'reportingto-dropdown-container') {
+            document.getElementById('reportingtoid').value = '';
+            document.getElementById('reportingtoid_display').value = '';
+          }
+        }
+      }, 200);
+    };
+
+    const list = document.createElement('div');
+    list.className = 'searchable-dropdown-list';
+
+    items.forEach(item => {
+      const option = document.createElement('div');
+      const displayValue = displayKey ? item[displayKey] : item;
+      const dataValue = valueKey ? item[valueKey] : item;
+
+      option.textContent = displayValue;
+      option.dataset.value = dataValue;
+      option.onclick = () => {
+        input.value = displayValue;
+        list.style.display = 'none';
+        if (hiddenInput) hiddenInput.value = dataValue;
+        if (onSelectCallback) onSelectCallback(dataValue);
+      };
+      list.appendChild(option);
+    });
+
+    container.append(input, list);
+
+    input.onkeyup = () => {
+      const filter = input.value.toUpperCase();
+      const options = list.getElementsByTagName('div');
+      for (let i = 0; i < options.length; i++) {
+        options[i].style.display = options[i].textContent.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
+      }
+    };
+
+    input.onfocus = () => list.style.display = 'block';
+    document.addEventListener('click', (e) => {
+      if (!container.contains(e.target)) list.style.display = 'none';
+    });
+  }
+
+  function setSearchableDropdownValue(containerId, value) {
+    const container = document.getElementById(containerId);
+    const input = container.querySelector('input.searchable-dropdown-input');
+    const hiddenInput = document.getElementById(containerId.replace('-dropdown-container', ''));
+    if (input) input.value = value || '';
+    if (hiddenInput) hiddenInput.value = value || '';
+  }
+</script>
+</body>
+</html>
+
