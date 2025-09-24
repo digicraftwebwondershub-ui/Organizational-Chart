@@ -1096,6 +1096,79 @@ function saveEmployeeData(dataObject, mode) {
     const statusColIndex = headers.indexOf('Status') + 1;
 
 
+    // --- START: Automated Direct Report Reassignment Logic ---
+    const isBecomingVacant = dataObject.status && dataObject.status.toUpperCase() === 'VACANT';
+    const isTransferOrPromo = dataObject.employeeid && (dataObject.status.toUpperCase() === 'PROMOTION' || dataObject.status.toUpperCase() === 'INTERNAL TRANSFER' || dataObject.status.toUpperCase() === 'LATERAL TRANSFER');
+
+    // This logic runs if we are in 'edit' mode and a position is being vacated either by
+    // an explicit status change to "VACANT" or by an employee transferring to a new role.
+    if (mode === 'edit' && (isBecomingVacant || isTransferOrPromo)) {
+      const allData = mainSheet.getDataRange().getValues();
+      // We need to re-fetch headers from allData in case they are different from the initial `headers` variable
+      const currentHeaders = allData[0];
+      const posIdIndex = currentHeaders.indexOf('Position ID');
+      const empIdIndex = currentHeaders.indexOf('Employee ID');
+      const reportingToIdIndex = currentHeaders.indexOf('Reporting to ID');
+      const empNameIndex = currentHeaders.indexOf('Employee Name');
+
+      let positionToVacateId = dataObject.positionid;
+
+      // For a transfer, the position being vacated is the employee's OLD position, not their new one.
+      if (isTransferOrPromo) {
+        for (let i = 1; i < allData.length; i++) {
+          const rowData = allData[i];
+          const currentEmpId = rowData[empIdIndex] ? String(rowData[empIdIndex]).trim().toUpperCase() : '';
+          const currentPosId = rowData[posIdIndex] ? String(rowData[posIdIndex]).trim().toUpperCase() : '';
+
+          // Find the row where the employee ID matches, but the position ID is different from their new one.
+          if (currentEmpId === dataObject.employeeid.toUpperCase() && currentPosId !== dataObject.positionid.toUpperCase()) {
+            positionToVacateId = rowData[posIdIndex];
+            break; // Found the old position, no need to search further.
+          }
+        }
+      }
+
+      // Find the row of the position that is being vacated.
+      const managerRowToVacate = allData.find(row => row[posIdIndex] === positionToVacateId);
+
+      if (managerRowToVacate) {
+        const departingEmployeeId = managerRowToVacate[empIdIndex] ? String(managerRowToVacate[empIdIndex]).trim() : null;
+
+        // Only proceed if there was actually an employee in that position.
+        if (departingEmployeeId) {
+          const departingManagerId = managerRowToVacate[reportingToIdIndex] ? String(managerRowToVacate[reportingToIdIndex]).trim() : null;
+          let grandManagerId = '';
+          let grandManagerName = '';
+
+          // If the departing employee had a manager, find that manager's details.
+          // This will be the new manager for the direct reports.
+          if (departingManagerId) {
+            const grandManagerRow = allData.find(row => (row[empIdIndex] ? String(row[empIdIndex]).trim() : '') === departingManagerId);
+            if (grandManagerRow) {
+              grandManagerId = grandManagerRow[empIdIndex];
+              grandManagerName = grandManagerRow[empNameIndex];
+            }
+          }
+
+          // Now, find all employees who reported to the departing employee and reassign them.
+          const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
+          for (let i = 1; i < allData.length; i++) {
+            const reportRow = allData[i];
+            const reportCurrentManagerId = reportRow[reportingToIdIndex] ? String(reportRow[reportingToIdIndex]).trim() : '';
+
+            if (reportCurrentManagerId === departingEmployeeId) {
+              const reportSheetRowIndex = i + 1; // Sheet rows are 1-based.
+              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(grandManagerId);
+              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(grandManagerName);
+              Logger.log(`Reassigned direct report in row ${reportSheetRowIndex} to manager: ${grandManagerName || 'none'}`);
+            }
+          }
+        }
+      }
+    }
+    // --- END: Automated Direct Report Reassignment Logic ---
+
+
     // --- REVISED WORKFLOW FOR TRANSFERS/PROMOTIONS ---
     // If an employee ID is provided for a transfer/promotion, this logic finds their old position
     // and automatically vacates it. This creates a clean, one-step process for internal movements.
