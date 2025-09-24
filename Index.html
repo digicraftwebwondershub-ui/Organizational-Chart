@@ -308,7 +308,7 @@
         <input type="text" id="employeeid" name="employeeid" class="mt-1 p-2 w-full border rounded">
         <label class="block font-medium mt-2">Employee Name</label>
         <input type="text" id="employeename" name="employeename" class="mt-1 p-2 w-full border rounded">
-        <label class="block font-medium mt-2">Reporting to</label>
+        <label class="block font-medium mt-2">Reporting to <span class="text-red-500">*</span></label>
         <div id="reportingto-dropdown-container" class="searchable-dropdown"></div>
         <input type="hidden" id="reportingtoid" name="reportingtoid">
         <input type="hidden" id="reportingto" name="reportingto">
@@ -419,10 +419,26 @@
 
   <div class="p-4 sm:p-6 rounded-lg mb-6 bg-white shadow-md">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-4">
-      <div><label for="division-filter" class="block text-sm font-medium text-gray-700">Filter by Division</label><select id="division-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
-      <div><label for="group-filter" class="block text-sm font-medium text-gray-700">Filter by Group</label><select id="group-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
-      <div><label for="department-filter" class="block text-sm font-medium text-gray-700">Filter by Department</label><select id="department-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
-      <div><label for="section-filter" class="block text-sm font-medium text-gray-700">Filter by Section</label><select id="section-filter" class="mt-1 block w-full bg-transparent border-0 border-b-2 border-gray-200 p-2"><option>Loading...</option></select></div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Filter by Division</label>
+        <div id="division-filter-container" class="searchable-dropdown mt-1"></div>
+        <input type="hidden" id="division-filter-value" value="all">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Filter by Group</label>
+        <div id="group-filter-container" class="searchable-dropdown mt-1"></div>
+        <input type="hidden" id="group-filter-value" value="all">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Filter by Department</label>
+        <div id="department-filter-container" class="searchable-dropdown mt-1"></div>
+        <input type="hidden" id="department-filter-value" value="all">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Filter by Section</label>
+        <div id="section-filter-container" class="searchable-dropdown mt-1"></div>
+        <input type="hidden" id="section-filter-value" value="all">
+      </div>
     </div>
     <button id="reset-filters-btn" class="w-full bg-slate-700 text-white py-2 mt-4 rounded-lg hover:bg-slate-800">Reset Filters</button>
   </div>
@@ -569,8 +585,8 @@
     }
 
     populateLevelLegend();
-    setupEventListeners();
-    updateAndPopulateFilters(true);
+    setupPageEventListeners();
+    populateFilters();
     updateUI();
   }
 
@@ -583,10 +599,10 @@
   // --- UI & DATA RENDERING ---
 
   function getDirectFilteredCount() {
-    var division = document.getElementById('division-filter').value;
-    var group = document.getElementById('group-filter').value;
-    var department = document.getElementById('department-filter').value;
-    var section = document.getElementById('section-filter').value;
+    var division = document.getElementById('division-filter-value').value;
+    var group = document.getElementById('group-filter-value').value;
+    var department = document.getElementById('department-filter-value').value;
+    var section = document.getElementById('section-filter-value').value;
     return fullEmployeeData.filter(function(emp) {
       return (emp.positionStatus || '').toLowerCase() !== 'inactive' &&
       (division === 'all' || emp.division === division) &&
@@ -684,10 +700,10 @@
       '<p class="text-sm mt-1">Filled: ' + filledCount + ', Vacant: ' + vacantCount + '</p>';
     const plantillaCard = document.getElementById('plantilla-headcount-card');
 
-    const division = document.getElementById('division-filter').value;
-    const group = document.getElementById('group-filter').value;
-    const department = document.getElementById('department-filter').value;
-    const section = document.getElementById('section-filter').value;
+    const division = document.getElementById('division-filter-value').value;
+    const group = document.getElementById('group-filter-value').value;
+    const department = document.getElementById('department-filter-value').value;
+    const section = document.getElementById('section-filter-value').value;
 
     const filteredPlantilla = getPlantillaForLevel(division, group, department, section);
 
@@ -944,9 +960,9 @@
 
   function renderSummary(filteredData) {
     var summary = {};
-    var groupFilterValue = document.getElementById('group-filter').value;
-    var departmentFilterValue = document.getElementById('department-filter').value;
-    var sectionFilterValue = document.getElementById('section-filter').value;
+    var groupFilterValue = document.getElementById('group-filter-value').value;
+    var departmentFilterValue = document.getElementById('department-filter-value').value;
+    var sectionFilterValue = document.getElementById('section-filter-value').value;
 
     filteredData.forEach(function(pos) {
       if (!pos.division) return;
@@ -1208,7 +1224,7 @@ function renderNotifications(data) {
 
   function renderApprovalSection() {
     const container = document.getElementById('approval-section');
-    const department = document.getElementById('department-filter').value;
+    const department = document.getElementById('department-filter-value').value;
     if (department === 'all') {
       container.innerHTML = '<p class="text-gray-500">Please select a specific department to view its approval status.</p>';
       return;
@@ -1297,91 +1313,105 @@ function renderNotifications(data) {
       .recordApproval(role, department);
   }
 
-  // --- FILTERS AND EVENT LISTENERS ---
-  function setupEventListeners() {
-    document.getElementById('division-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
-    document.getElementById('group-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
-    document.getElementById('department-filter').addEventListener('change', function() { updateAndPopulateFilters(false); updateUI(); });
-    document.getElementById('section-filter').addEventListener('change', updateUI);
-    document.getElementById('reset-filters-btn').addEventListener('click', resetFilters);
+  // --- FILTERS AND EVENT LISTENERS (REFACTORED) ---
+
+  // Configuration for the filter hierarchy
+  const FILTERS_CONFIG = [
+      { id: 'division', containerId: 'division-filter-container', valueId: 'division-filter-value', defaultLabel: 'All Divisions', parent: null },
+      { id: 'group', containerId: 'group-filter-container', valueId: 'group-filter-value', defaultLabel: 'All Groups', parent: 'division' },
+      { id: 'department', containerId: 'department-filter-container', valueId: 'department-filter-value', defaultLabel: 'All Departments', parent: 'group' },
+      { id: 'section', containerId: 'section-filter-container', valueId: 'section-filter-value', defaultLabel: 'All Sections', parent: 'department' }
+  ];
+
+  /**
+   * Populates all filter dropdowns based on the current state of parent filters.
+   * This is the core logic for the dependent dropdowns. It is designed to be called
+   * to refresh the entire filter set.
+   */
+  function populateFilters() {
+      let sourceData = fullEmployeeData;
+      FILTERS_CONFIG.forEach(config => {
+          const currentValue = document.getElementById(config.valueId).value;
+          const options = [config.defaultLabel, ...new Set(sourceData.map(e => e[config.id]).filter(String).sort())];
+          
+          // Re-create the dropdown with the new filtered options.
+          // The callback is the key part that drives the dependent logic.
+          createSearchableDropdown(config.containerId, options, null, null, (selection) => {
+              const newValue = (selection === config.defaultLabel) ? 'all' : selection;
+              if (document.getElementById(config.valueId).value !== newValue) {
+                  document.getElementById(config.valueId).value = newValue;
+                  
+                  // When a filter changes, reset all its children's values to 'all'.
+                  let childIdToReset = config.id;
+                  let childConfig = FILTERS_CONFIG.find(f => f.parent === childIdToReset);
+                  while (childConfig) {
+                      document.getElementById(childConfig.valueId).value = 'all';
+                      childIdToReset = childConfig.id;
+                      childConfig = FILTERS_CONFIG.find(f => f.parent === childIdToReset);
+                  }
+                  
+                  populateFilters(); // Re-populate all filters to update children based on new selections.
+                  updateUI();
+              }
+          });
+          // Set the displayed value in the dropdown to the current value.
+          setSearchableDropdownValue(config.containerId, currentValue === 'all' ? config.defaultLabel : currentValue);
+
+          // Filter the data for the next dropdown in the hierarchy.
+          if (currentValue !== 'all') {
+              sourceData = sourceData.filter(emp => emp[config.id] === currentValue);
+          }
+      });
+  }
+  
+  /**
+   * Sets up the main event listeners for the page (e.g., the reset button).
+   */
+  function setupPageEventListeners() {
+      document.getElementById('reset-filters-btn').addEventListener('click', resetFilters);
   }
 
-  function updateAndPopulateFilters(isInitialLoad) {
-    var divisionFilter = document.getElementById('division-filter');
-    var groupFilter = document.getElementById('group-filter');
-    var departmentFilter = document.getElementById('department-filter');
-    var sectionFilter = document.getElementById('section-filter');
-    var populateSelect = function(element, options, defaultLabel) {
-      var currentValue = element.value;
-      element.innerHTML = '';
-      element.add(new Option(defaultLabel, 'all'));
-      options.forEach(function(opt) { element.add(new Option(opt, opt)); });
-      var valueExists = options.some(function(opt) { return opt === currentValue; });
-      if (valueExists && !isInitialLoad) {
-        element.value = currentValue;
-      } else {
-        element.value = 'all';
-      }
-    };
-    if (isInitialLoad) {
-      var uniqueDivisions = [...new Set(fullEmployeeData.map(function(e) { return e.division; }).filter(String))].sort();
-      populateSelect(divisionFilter, uniqueDivisions, 'All Divisions');
-    }
-    var selectedDivision = divisionFilter.value;
-    var groupData = (selectedDivision === 'all') ? fullEmployeeData : fullEmployeeData.filter(function(e) { return e.division === selectedDivision; });
-    var uniqueGroups = [...new Set(groupData.map(function(e) { return e.group; }).filter(String))].sort();
-    populateSelect(groupFilter, uniqueGroups, 'All Groups');
-    var selectedGroup = groupFilter.value;
-    var departmentData = (selectedGroup === 'all') ? groupData : groupData.filter(function(e) { return e.group === selectedGroup; });
-    var uniqueDepartments = [...new Set(departmentData.map(function(e) { return e.department; }).filter(String))].sort();
-    populateSelect(departmentFilter, uniqueDepartments, 'All Departments');
-    var selectedDepartment = departmentFilter.value;
-    var sectionData = (selectedDepartment === 'all') ? departmentData : departmentData.filter(function(e) { return e.department === selectedDepartment; });
-    var uniqueSections = [...new Set(sectionData.map(function(e) { return e.section; }).filter(String))].sort();
-    populateSelect(sectionFilter, uniqueSections, 'All Sections');
-  }
-
+  /**
+   * Resets all filters to their default "All" state and updates the UI.
+   */
   function resetFilters() {
-    document.getElementById('division-filter').value = 'all';
-    document.getElementById('group-filter').value = 'all';
-    document.getElementById('department-filter').value = 'all';
-    document.getElementById('section-filter').value = 'all';
-    updateAndPopulateFilters(false);
-    updateUI();
+      FILTERS_CONFIG.forEach(config => {
+          document.getElementById(config.valueId).value = 'all';
+      });
+      populateFilters();
+      updateUI();
   }
   function zoom(amount) { currentZoom = Math.max(0.2, currentZoom + amount); document.getElementById('chart_div').style.transform = 'scale(' + currentZoom + ')'; }
   function toTitleCase(str) { if (!str) return ''; return str.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); }); }
 
   function exportChart(format) {
     const chartContainer = document.getElementById('chart_div');
-    const departmentFilter = document.getElementById('department-filter');
-    let departmentName = departmentFilter.options[departmentFilter.selectedIndex].text;
 
-    // --- TITLE GENERATION LOGIC ---
-    const divisionFilter = document.getElementById('division-filter');
-    const groupFilter = document.getElementById('group-filter');
-    const sectionFilter = document.getElementById('section-filter');
+    // --- REVISED TITLE AND FILENAME LOGIC ---
+    // Read values directly from the searchable dropdown input fields
+    const divisionName = document.querySelector('#division-filter-container .searchable-dropdown-input').value;
+    const groupName = document.querySelector('#group-filter-container .searchable-dropdown-input').value;
+    const deptName = document.querySelector('#department-filter-container .searchable-dropdown-input').value;
+    const sectionName = document.querySelector('#section-filter-container .searchable-dropdown-input').value;
 
-    let titleText = "Company Organizational Chart"; // Default title
-    const sectionName = sectionFilter.options[sectionFilter.selectedIndex].text;
-    const deptName = departmentFilter.options[departmentFilter.selectedIndex].text;
-    const groupName = groupFilter.options[groupFilter.selectedIndex].text;
-    const divisionName = divisionFilter.options[divisionFilter.selectedIndex].text;
+    let titleText = "Company Organizational Chart";
+    let fileNameLead = "OrgChart"; // The most specific part of the name for the file
 
-    if (sectionFilter.value !== 'all') {
+    if (sectionName && sectionName !== 'All Sections') {
         titleText = `Section: ${sectionName}`;
-    } else if (departmentFilter.value !== 'all') {
+        fileNameLead = sectionName;
+    } else if (deptName && deptName !== 'All Departments') {
         titleText = `Department: ${deptName}`;
-    } else if (groupFilter.value !== 'all') {
+        fileNameLead = deptName;
+    } else if (groupName && groupName !== 'All Groups') {
         titleText = `Group: ${groupName}`;
-    } else if (divisionFilter.value !== 'all') {
+        fileNameLead = groupName;
+    } else if (divisionName && divisionName !== 'All Divisions') {
         titleText = `Division: ${divisionName}`;
+        fileNameLead = divisionName;
     }
-
-    if (departmentName === 'All Departments' || departmentName === 'Loading...' || !departmentName) {
-      departmentName = 'OrgChart';
-    }
-    const fileName = `${departmentName.replace(/ /g, '_')}_${new Date().toISOString().slice(0,10)}.${format}`;
+    
+    const fileName = `${fileNameLead.replace(/ /g, '_')}_${new Date().toISOString().slice(0,10)}.${format}`;
 
     showSavingOverlay();
     const savingText = document.getElementById('saving-text');
@@ -1408,13 +1438,13 @@ function renderNotifications(data) {
 
     const chartClone = chartContainer.cloneNode(true);
     chartClone.style.transform = '';
-
+    
     captureWrapper.appendChild(titleElement);
     captureWrapper.appendChild(chartClone);
-
+    
     cloneContainer.appendChild(captureWrapper);
     document.body.appendChild(cloneContainer);
-
+    
     setTimeout(() => {
         html2canvas(captureWrapper, {
             useCORS: true,
@@ -1703,6 +1733,23 @@ function renderNotifications(data) {
       alert('Please fill in all required fields (*).');
       return;
     }
+
+    // --- VALIDATE REQUIRED "REPORTING TO" FIELD ---
+    // This field is mandatory unless the user is creating the very first employee (the root node)
+    // or editing the existing, single root node. It is also not required for VACANT positions.
+    if (!data.reportingtoid) {
+        const rootNodes = fullEmployeeData.filter(emp => !emp.managerId && emp.employeeId);
+        const isEditingTheSingleRootNode = (
+            data.formmode === 'edit' &&
+            rootNodes.length === 1 &&
+            rootNodes[0].employeeId === data.employeeid
+        );
+        const isAddingFirstNode = (data.formmode === 'add' && fullEmployeeData.length === 0);
+        if (!isEditingTheSingleRootNode && !isAddingFirstNode && data.status.toUpperCase() !== 'VACANT') {
+            alert('The "Reporting To" field is required.');
+            return;
+        }
+    }
     
     const mode = data.formmode;
     if (mode === 'edit' && data.employeeid && data.status.toUpperCase() === 'VACANT' && originalStatus.toUpperCase() !== 'RESIGNED') {
@@ -1830,73 +1877,92 @@ function renderNotifications(data) {
     }
   }
 
-  function createSearchableDropdown(containerId, items, displayKey, valueKey, onSelectCallback) {
-    const container = document.getElementById(containerId);
-    const hiddenInputName = containerId.replace('-dropdown-container', '');
-    const hiddenInput = document.getElementById(hiddenInputName);
+  /**
+ * Creates a searchable dropdown component.
+ * @param {string} containerId - The ID of the element to contain the dropdown.
+ * @param {Array<string|Object>} items - The list of items to display.
+ * @param {string|null} displayKey - If items are objects, the key for the display text.
+ * @param {string|null} valueKey - If items are objects, the key for the data value.
+ * @param {function} onSelectCallback - The function to call when an item is selected.
+ */
+function createSearchableDropdown(containerId, items, displayKey, valueKey, onSelectCallback) {
+  const container = document.getElementById(containerId);
+  const hiddenInputName = containerId.replace('-dropdown-container', '');
+  const hiddenInput = document.getElementById(hiddenInputName);
 
-    container.innerHTML = '';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'searchable-dropdown-input';
-    input.placeholder = 'Type to search...';
+  container.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'searchable-dropdown-input';
+  input.placeholder = 'Type to search...';
 
-    input.addEventListener('change', () => {
-        if (onSelectCallback) {
-            const selectedItem = items.find(item => (displayKey ? item[displayKey] : item) === input.value);
-            const dataValue = selectedItem ? (valueKey ? selectedItem[valueKey] : selectedItem) : input.value;
-            onSelectCallback(dataValue);
+  input.addEventListener('change', () => {
+    if (onSelectCallback) {
+      const selectedItem = items.find(item => (displayKey ? item[displayKey] : item) === input.value);
+      const dataValue = selectedItem ? (valueKey ? selectedItem[valueKey] : selectedItem) : input.value;
+      onSelectCallback(dataValue);
+    }
+  });
+
+  input.onblur = () => {
+    setTimeout(() => {
+      const listIsVisible = list.style.display === 'block';
+      if (listIsVisible) return;
+      if (input.value === '') {
+        if (hiddenInput) hiddenInput.value = '';
+        if (containerId === 'reportingto-dropdown-container') {
+          document.getElementById('reportingtoid').value = '';
+          document.getElementById('reportingtoid_display').value = '';
         }
-    });
-
-    input.onblur = () => {
-      setTimeout(() => {
-        const listIsVisible = list.style.display === 'block';
-        if (listIsVisible) return;
-        if (input.value === '') {
-          if (hiddenInput) hiddenInput.value = '';
-          if (containerId === 'reportingto-dropdown-container') {
-            document.getElementById('reportingtoid').value = '';
-            document.getElementById('reportingtoid_display').value = '';
-          }
-        }
-      }, 200);
-    };
-
-    const list = document.createElement('div');
-    list.className = 'searchable-dropdown-list';
-
-    items.forEach(item => {
-      const option = document.createElement('div');
-      const displayValue = displayKey ? item[displayKey] : item;
-      const dataValue = valueKey ? item[valueKey] : item;
-
-      option.textContent = displayValue;
-      option.dataset.value = dataValue;
-      option.onclick = () => {
-        input.value = displayValue;
-        list.style.display = 'none';
-        if (hiddenInput) hiddenInput.value = dataValue;
-        if (onSelectCallback) onSelectCallback(dataValue);
-      };
-      list.appendChild(option);
-    });
-
-    container.append(input, list);
-
-    input.onkeyup = () => {
-      const filter = input.value.toUpperCase();
-      const options = list.getElementsByTagName('div');
-      for (let i = 0; i < options.length; i++) {
-        options[i].style.display = options[i].textContent.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
       }
-    };
+    }, 200);
+  };
 
-    input.onfocus = () => list.style.display = 'block';
-    document.addEventListener('click', (e) => {
-      if (!container.contains(e.target)) list.style.display = 'none';
-    });
-  }
+  const list = document.createElement('div');
+  list.className = 'searchable-dropdown-list';
+
+  items.forEach(item => {
+    const option = document.createElement('div');
+    const displayValue = displayKey ? item[displayKey] : item;
+    const dataValue = valueKey ? item[valueKey] : item;
+
+    option.textContent = displayValue;
+    option.dataset.value = dataValue;
+    
+    // --- REVISION START ---
+    // Switched from 'onclick' to 'onmousedown'.
+    // This resolves a race condition where the input's 'blur' and 'change' events would fire
+    // with the partial, typed text (e.g., "CSD") before the 'click' event could register
+    // the selection of the full text (e.g., "04 CSD"). 'onmousedown' fires before 'blur',
+    // ensuring the correct value is set and propagated first.
+    option.onmousedown = () => {
+      input.value = displayValue;
+      list.style.display = 'none';
+      if (hiddenInput) hiddenInput.value = dataValue;
+      if (onSelectCallback) onSelectCallback(dataValue);
+    };
+    // --- REVISION END ---
+
+    list.appendChild(option);
+  });
+
+  container.append(input, list);
+
+  input.onkeyup = () => {
+    const filter = input.value.toUpperCase();
+    const options = list.getElementsByTagName('div');
+    // Ensure the dropdown list is visible when the user is typing.
+    list.style.display = 'block';
+    for (let i = 0; i < options.length; i++) {
+      options[i].style.display = options[i].textContent.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
+    }
+  };
+
+  input.onfocus = () => list.style.display = 'block';
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) list.style.display = 'none';
+  });
+}
 
   function setSearchableDropdownValue(containerId, value) {
     const container = document.getElementById(containerId);
