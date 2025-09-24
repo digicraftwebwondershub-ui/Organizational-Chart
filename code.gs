@@ -708,7 +708,18 @@ function getEmployeeData() {
 
 
       const managerEmployeeId = row[3] ? row[3].toString().trim() : null;
-      const managerPositionId = managerEmployeeId ? employeeIdToPositionIdMap.get(managerEmployeeId) : '';
+      let managerPositionId = ''; // Use let instead of const
+
+      if (managerEmployeeId) {
+        // Heuristic: Position IDs contain hyphens, Employee IDs do not.
+        // This handles the temporary state where a report is pointed to a vacant Position ID.
+        if (managerEmployeeId.includes('-')) {
+          managerPositionId = managerEmployeeId;
+        } else {
+          // Otherwise, it's an Employee ID, so look it up in the map as usual.
+          managerPositionId = employeeIdToPositionIdMap.get(managerEmployeeId) || '';
+        }
+      }
 
 
       const history = historicalNotes[posId] || {};
@@ -1104,12 +1115,12 @@ function saveEmployeeData(dataObject, mode) {
     // an explicit status change to "VACANT" or by an employee transferring to a new role.
     if (mode === 'edit' && (isBecomingVacant || isTransferOrPromo)) {
       const allData = mainSheet.getDataRange().getValues();
-      // We need to re-fetch headers from allData in case they are different from the initial `headers` variable
       const currentHeaders = allData[0];
       const posIdIndex = currentHeaders.indexOf('Position ID');
       const empIdIndex = currentHeaders.indexOf('Employee ID');
       const reportingToIdIndex = currentHeaders.indexOf('Reporting to ID');
-      const empNameIndex = currentHeaders.indexOf('Employee Name');
+      const jobTitleIndex = currentHeaders.indexOf('Job Title');
+      const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
 
       let positionToVacateId = dataObject.positionid;
 
@@ -1120,47 +1131,33 @@ function saveEmployeeData(dataObject, mode) {
           const currentEmpId = rowData[empIdIndex] ? String(rowData[empIdIndex]).trim().toUpperCase() : '';
           const currentPosId = rowData[posIdIndex] ? String(rowData[posIdIndex]).trim().toUpperCase() : '';
 
-          // Find the row where the employee ID matches, but the position ID is different from their new one.
           if (currentEmpId === dataObject.employeeid.toUpperCase() && currentPosId !== dataObject.positionid.toUpperCase()) {
             positionToVacateId = rowData[posIdIndex];
-            break; // Found the old position, no need to search further.
+            break;
           }
         }
       }
 
-      // Find the row of the position that is being vacated.
       const managerRowToVacate = allData.find(row => row[posIdIndex] === positionToVacateId);
 
       if (managerRowToVacate) {
         const departingEmployeeId = managerRowToVacate[empIdIndex] ? String(managerRowToVacate[empIdIndex]).trim() : null;
 
-        // Only proceed if there was actually an employee in that position.
         if (departingEmployeeId) {
-          const departingManagerId = managerRowToVacate[reportingToIdIndex] ? String(managerRowToVacate[reportingToIdIndex]).trim() : null;
-          let grandManagerId = '';
-          let grandManagerName = '';
+          const vacatedPositionId = managerRowToVacate[posIdIndex];
+          const vacatedJobTitle = managerRowToVacate[jobTitleIndex];
+          const newManagerNameForReport = `(Vacant) ${vacatedJobTitle}`;
 
-          // If the departing employee had a manager, find that manager's details.
-          // This will be the new manager for the direct reports.
-          if (departingManagerId) {
-            const grandManagerRow = allData.find(row => (row[empIdIndex] ? String(row[empIdIndex]).trim() : '') === departingManagerId);
-            if (grandManagerRow) {
-              grandManagerId = grandManagerRow[empIdIndex];
-              grandManagerName = grandManagerRow[empNameIndex];
-            }
-          }
-
-          // Now, find all employees who reported to the departing employee and reassign them.
-          const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
+          // Find all employees who reported to the departing employee and reassign them to the vacant position ID.
           for (let i = 1; i < allData.length; i++) {
             const reportRow = allData[i];
             const reportCurrentManagerId = reportRow[reportingToIdIndex] ? String(reportRow[reportingToIdIndex]).trim() : '';
 
             if (reportCurrentManagerId === departingEmployeeId) {
-              const reportSheetRowIndex = i + 1; // Sheet rows are 1-based.
-              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(grandManagerId);
-              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(grandManagerName);
-              Logger.log(`Reassigned direct report in row ${reportSheetRowIndex} to manager: ${grandManagerName || 'none'}`);
+              const reportSheetRowIndex = i + 1;
+              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(vacatedPositionId);
+              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(newManagerNameForReport);
+              Logger.log(`Reassigned direct report in row ${reportSheetRowIndex} to vacant position: ${vacatedPositionId}`);
             }
           }
         }
@@ -1305,6 +1302,37 @@ function saveEmployeeData(dataObject, mode) {
       const rangeToUpdate = mainSheet.getRange(rowIndex, 1, 1, headers.length);
       const existingRowData = rangeToUpdate.getValues()[0];
 
+      // --- START: Logic to reassign reports when a vacancy is filled ---
+      const originalStatus = existingRowData[statusColIndex - 1]; // statusColIndex is 1-based
+      const newStatus = dataObject.status;
+      const newEmployeeId = dataObject.employeeid;
+      const newEmployeeName = dataObject.employeename;
+
+      // If a previously vacant position is now being filled by a new employee...
+      if (originalStatus && originalStatus.toUpperCase() === 'VACANT' && newStatus.toUpperCase() !== 'VACANT' && newEmployeeId) {
+        const filledPositionId = dataObject.positionid;
+
+        const allData = mainSheet.getDataRange().getValues();
+        const currentHeaders = allData[0];
+        const reportingToIdIndex = currentHeaders.indexOf('Reporting to ID');
+        const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
+
+        // Find all employees who were reporting to the vacant position and reassign them to the new manager.
+        if (reportingToIdIndex !== -1 && reportingToNameIndex !== -1) {
+          for (let i = 1; i < allData.length; i++) {
+            const reportRow = allData[i];
+            const reportCurrentManagerId = reportRow[reportingToIdIndex] ? String(reportRow[reportingToIdIndex]).trim() : '';
+
+            if (reportCurrentManagerId === filledPositionId) {
+              const reportSheetRowIndex = i + 1;
+              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(newEmployeeId);
+              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(newEmployeeName);
+              Logger.log(`Auto-reassigned report in row ${reportSheetRowIndex} to new manager ${newEmployeeName} in position ${filledPositionId}`);
+            }
+          }
+        }
+      }
+      // --- END: Logic to reassign reports when a vacancy is filled ---
 
       for (const key in dataObject) {
         if (keyMap.hasOwnProperty(key)) {
