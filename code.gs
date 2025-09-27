@@ -1388,6 +1388,18 @@ function generateIncumbencyReport() {
 
   for (const posId of sortedPosIds) {
     const records = allHistory[posId];
+    if (!records || records.length === 0) continue;
+
+    // Correction Logic: Check if the last incumbent in the history is still the active employee.
+    // If so, their end date must be 'Present' (null), overriding any incorrect log data.
+    const lastRecord = records[records.length - 1];
+    const currentLiveRow = mainDataMap.get(posId);
+    const currentLiveEmployeeId = currentLiveRow ? (currentLiveRow[1] || '').toString().trim() : null;
+
+    if (lastRecord.incumbentId && currentLiveEmployeeId && lastRecord.incumbentId === currentLiveEmployeeId && lastRecord.endDate) {
+      lastRecord.endDate = null; // Set to null, which signifies 'Present'
+    }
+
     records.forEach(rec => {
       const tenure = (rec.startDate && (rec.endDate || new Date())) ? Math.round(((rec.endDate || new Date()) - rec.startDate) / (1000 * 60 * 60 * 24)) : 0;
       finalHistoryRecords.push([
@@ -1573,19 +1585,28 @@ function getDetailedIncumbencyHistory(posId) {
     const allHistory = calculateIncumbencyEngine(allLogData, headers, mainDataMap);
     let positionHistory = allHistory[posId] || [];
 
-    // --- FINAL, SIMPLIFIED FAILSAFE LOGIC ---
+    // --- START: DATA CORRECTION AND FAILSAFE LOGIC ---
     if (positionHistory.length > 0) {
       const lastRecord = positionHistory[positionHistory.length - 1];
       const liveRow = mainDataMap.get(posId);
-      const isCurrentlyVacant = !liveRow || !liveRow[1];
+      const currentLiveEmployeeId = liveRow ? (liveRow[1] || '').toString().trim() : null;
+      const isCurrentlyVacant = !currentLiveEmployeeId;
 
+      // Correction 1: If the last incumbent in the history is the current, active employee,
+      // ensure their end date is null (i.e., 'Present'), overriding any erroneous log entry.
+      if (lastRecord.incumbentId && currentLiveEmployeeId && lastRecord.incumbentId === currentLiveEmployeeId && lastRecord.endDate) {
+        Logger.log(`Position ${posId} is currently held by ${currentLiveEmployeeId}, but history shows an end date. Correcting to 'Present'.`);
+        lastRecord.endDate = null;
+      }
+
+      // Correction 2 (Failsafe): If the position is actually vacant, but the history shows 'Present',
+      // find the last known event for that position and use its date as the end date.
       if (lastRecord.endDate === null && isCurrentlyVacant) {
         Logger.log(`Position ${posId} is vacant but history shows "Present". Applying final failsafe.`);
         const posIdIndex = headers.indexOf('Position ID');
         const effectiveDateIndex = headers.indexOf('Effective Date');
         const timestampIndex = headers.indexOf('Change Timestamp');
         
-        // Find the absolute last event for this position in the log
         const allEventsForPos = allLogData
           .filter(row => row[posIdIndex] === posId)
           .map(row => ({ date: _parseDate(row[effectiveDateIndex]) || _parseDate(row[timestampIndex]) }))
@@ -1593,12 +1614,12 @@ function getDetailedIncumbencyHistory(posId) {
           .sort((a, b) => b.date.getTime() - a.date.getTime());
 
         if (allEventsForPos.length > 0) {
-          lastRecord.endDate = allEventsForPos[0].date; // Use the date of the most recent event
+          lastRecord.endDate = allEventsForPos[0].date;
           Logger.log(`Failsafe applied. Corrected End Date to: ${lastRecord.endDate}`);
         }
       }
     }
-    // --- END OF FAILSAFE LOGIC ---
+    // --- END OF DATA CORRECTION AND FAILSAFE LOGIC ---
 
     const finalHistory = positionHistory
       .filter(rec => rec.incumbentId)
