@@ -307,10 +307,10 @@ function logDataChanges() {
         const currentRowOnSheet = currentDataMap.get(posId);
         const isCurrentlyVacant = !currentRowOnSheet || !currentRowOnSheet[1];
 
-        if (pendingResignationPosId && pendingResignationDate && posId === pendingResignationPosId && empId && isCurrentlyVacant) {
+        if (pendingResignationPosId && pendingResignationDate && posId && posId.toUpperCase() === pendingResignationPosId && empId && isCurrentlyVacant) {
           // This is a transfer where the old position is now vacant. Use the stored effective date.
           newLogRow[effectiveDateIndex] = new Date(pendingResignationDate);
-        } else if (pendingEffectiveDatePosId && pendingEffectiveDate && posId === pendingEffectiveDatePosId) {
+        } else if (pendingEffectiveDatePosId && pendingEffectiveDate && posId && posId.toUpperCase() === pendingEffectiveDatePosId) {
           // This handles "Resigned" status changes.
           newLogRow[effectiveDateIndex] = new Date(pendingEffectiveDate);
         }
@@ -1205,6 +1205,7 @@ function saveEmployeeData(dataObject, mode) {
           mainSheet.getRange(oldRowIndex, statusIndexHeader + 1).setValue('VACANT');
 
           Logger.log(`Successfully vacated position ${existingPosId}.`);
+
           break;
         }
       }
@@ -1390,6 +1391,11 @@ function deactivatePosition(positionId) {
 function generateIncumbencyReport() {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const mainSheet = spreadsheet.getSheets()[0];
+  const mainData = mainSheet.getLastRow() > 1 ? mainSheet.getRange(2, 1, mainSheet.getLastRow() - 1, 3).getValues() : [];
+  const mainDataMap = new Map(mainData.map(row => [row[0], row]));
+
+
   const logSheet = spreadsheet.getSheetByName('change_log_sheet');
   const reportSheetName = 'Incumbency History';
   let reportSheet = spreadsheet.getSheetByName(reportSheetName);
@@ -1403,7 +1409,7 @@ function generateIncumbencyReport() {
 
   const allLogData = logSheet.getDataRange().getValues();
   const headers = allLogData.shift();
-  const allHistory = calculateIncumbencyEngine(allLogData, headers, new Map());
+  const allHistory = calculateIncumbencyEngine(allLogData, headers, mainDataMap);
   const finalHistoryRecords = [];
   const sortedPosIds = Object.keys(allHistory).sort();
 
@@ -1455,6 +1461,7 @@ function generateIncumbencyReport() {
 
 /**
  * REVISED - The single source of truth for calculating incumbency history.
+ * CONTAINS A FIX for the start date logic in promotion/transfer scenarios.
  */
 function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
   const posIdIndex = headers.indexOf('Position ID');
@@ -1464,6 +1471,20 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
   const timestampIndex = headers.indexOf('Change Timestamp');
   const effectiveDateIndex = headers.indexOf('Effective Date');
   const hireDateIndex = headers.indexOf('Date Hired');
+
+  // Helper function to check for the true first event across ALL logs
+  const isFirstEverEventForEmployee = (employeeId, eventDate, allLogs) => {
+    for (const row of allLogs) {
+      const logEmpId = (row[empIdIndex] || '').toString().trim();
+      if (logEmpId === employeeId) {
+        const logEventDate = _parseDate(row[effectiveDateIndex]) || _parseDate(row[timestampIndex]);
+        if (logEventDate && logEventDate.getTime() < eventDate.getTime()) {
+          return false; // Found an earlier event for this employee
+        }
+      }
+    }
+    return true; // No earlier event found
+  };
 
   const positions = {};
   allLogData.forEach(row => {
@@ -1482,21 +1503,19 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
     const changeEvents = logEntries
       .filter(row => row[timestampIndex])
       .map(row => {
-        // --- FIX: Use the robust _parseDate helper for all date columns ---
         const effectiveDate = _parseDate(row[effectiveDateIndex]);
         const timestamp = _parseDate(row[timestampIndex]);
         const hireDate = _parseDate(row[hireDateIndex]);
-        // --- END FIX ---
 
         return {
-          eventDate: effectiveDate || timestamp, // Prioritize effectiveDate
+          eventDate: effectiveDate || timestamp,
           incumbentId: (row[empIdIndex] || '').toString().trim() || null,
           incumbentName: (row[nameIndex] || '').toString().trim() || 'N/A',
           jobTitle: (row[jobTitleIndex] || '').toString().trim() || 'N/A',
           hireDate: hireDate
         };
       })
-      .filter(e => e.eventDate) // Ensure we only process events with a valid date
+      .filter(e => e.eventDate)
       .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
     if (changeEvents.length === 0) continue;
@@ -1510,30 +1529,44 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
     }, []);
 
     let historyRecords = [];
-    
     for (let i = 0; i < tenureChangeEvents.length; i++) {
       const currentEvent = tenureChangeEvents[i];
+      if (!currentEvent.incumbentId) continue;
 
-      if (currentEvent.incumbentId) {
-        const nextEvent = tenureChangeEvents[i + 1];
-        const endDate = nextEvent ? nextEvent.eventDate : null;
-        let startDate = currentEvent.eventDate;
+      const nextEvent = tenureChangeEvents[i + 1];
+      let endDate = nextEvent ? nextEvent.eventDate : null;
 
-        if (currentEvent.hireDate && currentEvent.hireDate < currentEvent.eventDate) {
-           const firstEverEventForEmployee = !changeEvents.some(e => e.incumbentId === currentEvent.incumbentId && e.eventDate < currentEvent.eventDate);
-           if (firstEverEventForEmployee) {
-               startDate = currentEvent.hireDate;
-           }
+      let startDate = currentEvent.eventDate;
+      // --- START OF FIX ---
+      // Check if we should use the hire date by looking at ALL log data
+      if (currentEvent.hireDate && currentEvent.hireDate.getTime() < currentEvent.eventDate.getTime()) {
+        if (isFirstEverEventForEmployee(currentEvent.incumbentId, currentEvent.eventDate, allLogData)) {
+           startDate = currentEvent.hireDate;
         }
+      }
+      // --- END OF FIX ---
 
-        historyRecords.push({
-          startDate: startDate,
-          endDate: endDate,
-          incumbentId: currentEvent.incumbentId,
-          incumbentName: currentEvent.incumbentName,
-          jobTitle: changeEvents.filter(e => e.incumbentId === currentEvent.incumbentId && e.eventDate >= startDate && (endDate ? e.eventDate < endDate : true)).pop()?.jobTitle || currentEvent.jobTitle,
-          hireDate: currentEvent.hireDate
-        });
+      const lastEventOfTenure = changeEvents
+        .filter(e => e.incumbentId === currentEvent.incumbentId && e.eventDate >= startDate && (endDate ? e.eventDate < endDate : true))
+        .pop() || currentEvent;
+
+      historyRecords.push({
+        startDate: startDate,
+        endDate: endDate,
+        incumbentId: currentEvent.incumbentId,
+        incumbentName: lastEventOfTenure.incumbentName,
+        jobTitle: lastEventOfTenure.jobTitle,
+        hireDate: currentEvent.hireDate
+      });
+    }
+
+    if (historyRecords.length > 0) {
+      const lastRecord = historyRecords[historyRecords.length - 1];
+      const liveRow = mainDataMap.get(posId);
+      const isCurrentlyVacant = !liveRow || !liveRow[1];
+
+      if (lastRecord.endDate === null && isCurrentlyVacant) {
+        lastRecord.endDate = changeEvents[changeEvents.length - 1].eventDate;
       }
     }
 
