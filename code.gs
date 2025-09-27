@@ -1386,18 +1386,37 @@ function generateIncumbencyReport() {
   const sortedPosIds = Object.keys(allHistory).sort();
 
 
+  const allLogDataNoHeaders = logSheet.getRange(2, 1, logSheet.getLastRow() - 1, logSheet.getLastColumn()).getValues();
+
   for (const posId of sortedPosIds) {
     const records = allHistory[posId];
     if (!records || records.length === 0) continue;
 
-    // Correction Logic: Check if the last incumbent in the history is still the active employee.
-    // If so, their end date must be 'Present' (null), overriding any incorrect log data.
     const lastRecord = records[records.length - 1];
     const currentLiveRow = mainDataMap.get(posId);
     const currentLiveEmployeeId = currentLiveRow ? (currentLiveRow[1] || '').toString().trim() : null;
+    const isCurrentlyVacant = !currentLiveEmployeeId;
 
+    // Correction 1: If the last incumbent is the current employee, ensure end date is 'Present'.
     if (lastRecord.incumbentId && currentLiveEmployeeId && lastRecord.incumbentId === currentLiveEmployeeId && lastRecord.endDate) {
-      lastRecord.endDate = null; // Set to null, which signifies 'Present'
+      lastRecord.endDate = null;
+    }
+
+    // Correction 2 (Failsafe): If history says 'Present' but the position is vacant, find the true end date.
+    if (lastRecord.endDate === null && isCurrentlyVacant) {
+      const posIdIndex = headers.indexOf('Position ID');
+      const effectiveDateIndex = headers.indexOf('Effective Date');
+      const timestampIndex = headers.indexOf('Change Timestamp');
+
+      const allEventsForPos = allLogDataNoHeaders
+        .filter(row => row[posIdIndex] === posId)
+        .map(row => ({ date: _parseDate(row[effectiveDateIndex]) || _parseDate(row[timestampIndex]) }))
+        .filter(event => event.date)
+        .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+      if (allEventsForPos.length > 0) {
+        lastRecord.endDate = allEventsForPos[0].date;
+      }
     }
 
     records.forEach(rec => {
