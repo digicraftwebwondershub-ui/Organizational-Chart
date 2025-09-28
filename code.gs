@@ -1113,211 +1113,120 @@ function saveEmployeeData(dataObject, mode) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const mainSheet = ss.getSheets()[0];
     const headers = mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0];
-    const statusColIndex = headers.indexOf('Status') + 1;
+    const keyMap = {};
+    headers.forEach((header, i) => {
+      const key = header.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/gi, '');
+      keyMap[key] = i;
+    });
 
-    // --- START: Automated Direct Report Reassignment Logic ---
-    // This logic remains the same as it correctly handles reassigning subordinates.
-    const isBecomingVacant = dataObject.status && dataObject.status.toUpperCase() === 'VACANT';
-    const isTransferOrPromo = dataObject.employeeid && (dataObject.status.toUpperCase() === 'PROMOTION' || dataObject.status.toUpperCase() === 'INTERNAL TRANSFER' || dataObject.status.toUpperCase() === 'LATERAL TRANSFER');
-
-    if (mode === 'edit' && (isBecomingVacant || isTransferOrPromo)) {
-      const allData = mainSheet.getDataRange().getValues();
-      const currentHeaders = allData[0];
-      const posIdIndex = currentHeaders.indexOf('Position ID');
-      const empIdIndex = currentHeaders.indexOf('Employee ID');
-      const reportingToIdIndex = currentHeaders.indexOf('Reporting to ID');
-      const jobTitleIndex = currentHeaders.indexOf('Job Title');
-      const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
-
-      let positionToVacateId = dataObject.positionid;
-
-      if (isTransferOrPromo) {
-        for (let i = 1; i < allData.length; i++) {
-          const rowData = allData[i];
-          const currentEmpId = rowData[empIdIndex] ? String(rowData[empIdIndex]).trim().toUpperCase() : '';
-          const currentPosId = rowData[posIdIndex] ? String(rowData[posIdIndex]).trim().toUpperCase() : '';
-
-          if (currentEmpId === dataObject.employeeid.toUpperCase() && currentPosId !== dataObject.positionid.toUpperCase()) {
-            positionToVacateId = rowData[posIdIndex];
-            break;
-          }
-        }
-      }
-
-      const managerRowToVacate = allData.find(row => row[posIdIndex] === positionToVacateId);
-      if (managerRowToVacate) {
-        const departingEmployeeId = managerRowToVacate[empIdIndex] ? String(managerRowToVacate[empIdIndex]).trim() : null;
-        if (departingEmployeeId) {
-          const vacatedPositionId = managerRowToVacate[posIdIndex];
-          const vacatedJobTitle = managerRowToVacate[jobTitleIndex];
-          const newManagerNameForReport = `(Vacant) ${vacatedJobTitle}`;
-
-          for (let i = 1; i < allData.length; i++) {
-            const reportRow = allData[i];
-            const reportCurrentManagerId = reportRow[reportingToIdIndex] ? String(reportRow[reportingToIdIndex]).trim() : '';
-            if (reportCurrentManagerId === departingEmployeeId) {
-              const reportSheetRowIndex = i + 1;
-              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(vacatedPositionId);
-              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(newManagerNameForReport);
-            }
-          }
-        }
-      }
-    }
-    // --- END: Automated Direct Report Reassignment Logic ---
-
-    // --- START: REVISED LOGIC FOR PROMOTION/TRANSFER ---
-    // This revised logic correctly handles the vacating of the old position.
-    // Instead of manually logging the event, it sets a script property.
-    // The main `logDataChanges` function will then detect this property and create
-    // a single, correctly-timed log entry for the vacancy event.
-    if (dataObject.employeeid && (dataObject.status.toUpperCase() === 'PROMOTION' || dataObject.status.toUpperCase() === 'INTERNAL TRANSFER' || dataObject.status.toUpperCase() === 'LATERAL TRANSFER')) {
-      const allData = mainSheet.getDataRange().getValues();
-      const sheetHeaders = allData[0];
-      const posIdIndex = sheetHeaders.indexOf('Position ID');
-      const empIdIndex = sheetHeaders.indexOf('Employee ID');
-
-      for (let i = 1; i < allData.length; i++) {
-        const row = allData[i];
-        const existingEmpId = row[empIdIndex] ? String(row[empIdIndex]).trim() : '';
-        const existingPosId = row[posIdIndex] ? String(row[posIdIndex]).trim() : '';
-
-        if (existingEmpId.toUpperCase() === dataObject.employeeid.toUpperCase() && existingPosId.toUpperCase() !== dataObject.positionid.toUpperCase()) {
-          const oldRowIndex = i + 1;
-          const oldPositionId = existingPosId;
-
-          // Set script properties to let logDataChanges handle the vacancy logging with the correct effective date.
-          if (dataObject.startdateinposition) {
-            scriptProperties.setProperties({
-              'pendingResignationPosId': oldPositionId.toUpperCase(),
-              'pendingResignationDate': dataObject.startdateinposition
-            });
-          }
-
-          // Now, clear the data from the main sheet for the old position.
-          const empNameIndex = sheetHeaders.indexOf('Employee Name');
-          const genderIndex = sheetHeaders.indexOf('Gender');
-          const dateHiredIndex = sheetHeaders.indexOf('Date Hired');
-          const contractEndIndex = sheetHeaders.indexOf('Contract End Date');
-          const statusIndexHeader = sheetHeaders.indexOf('Status');
-
-          mainSheet.getRange(oldRowIndex, empIdIndex + 1).clearContent();
-          mainSheet.getRange(oldRowIndex, empNameIndex + 1).clearContent();
-          mainSheet.getRange(oldRowIndex, genderIndex + 1).clearContent();
-          mainSheet.getRange(oldRowIndex, dateHiredIndex + 1).clearContent();
-          mainSheet.getRange(oldRowIndex, contractEndIndex + 1).clearContent();
-          mainSheet.getRange(oldRowIndex, statusIndexHeader + 1).setValue('VACANT');
-
-          break; // Exit loop after finding and processing the old position
-        }
-      }
-    }
-    // --- END REVISED LOGIC ---
-
-    // The rest of the function for processing the submitted form data remains largely the same
+    // Uppercase all string data from client
     for (const key in dataObject) {
       if (typeof dataObject[key] === 'string') {
         dataObject[key] = dataObject[key].toUpperCase();
       }
     }
 
-    if (dataObject.status && dataObject.status.toUpperCase() === 'VACANT') {
-      dataObject.employeeid = '';
-      dataObject.employeename = '';
-      dataObject.datehired = '';
-      dataObject.gender = '';
-      if (dataObject.effectivedate) {
-        PropertiesService.getScriptProperties().setProperties({
-          'pendingEffectiveDatePosId': dataObject.positionid.toUpperCase(),
-          'pendingEffectiveDate': dataObject.effectivedate
-        });
+    // --- Promotion/Transfer Logic (Vacates the old position) ---
+    if (dataObject.employeeid && (dataObject.status.toUpperCase() === 'PROMOTION' || dataObject.status.toUpperCase() === 'INTERNAL TRANSFER' || dataObject.status.toUpperCase() === 'LATERAL TRANSFER')) {
+      const allData = mainSheet.getDataRange().getValues();
+      const posIdIndex = headers.indexOf('Position ID');
+      const empIdIndex = headers.indexOf('Employee ID');
+      for (let i = 1; i < allData.length; i++) {
+        const row = allData[i];
+        if ((row[empIdIndex] || '').toUpperCase() === dataObject.employeeid.toUpperCase() && (row[posIdIndex] || '').toUpperCase() !== dataObject.positionid.toUpperCase()) {
+          const oldRowIndex = i + 1;
+          if (dataObject.startdateinposition) {
+            scriptProperties.setProperties({
+              'pendingResignationPosId': row[posIdIndex].toUpperCase(),
+              'pendingResignationDate': dataObject.startdateinposition
+            });
+          }
+          mainSheet.getRange(oldRowIndex, keyMap['employeeid'] + 1).clearContent();
+          mainSheet.getRange(oldRowIndex, keyMap['employeename'] + 1).clearContent();
+          mainSheet.getRange(oldRowIndex, keyMap['gender'] + 1).clearContent();
+          mainSheet.getRange(oldRowIndex, keyMap['datehired'] + 1).clearContent();
+          mainSheet.getRange(oldRowIndex, keyMap['contractenddate'] + 1).clearContent();
+          mainSheet.getRange(oldRowIndex, keyMap['status'] + 1).setValue('VACANT');
+          break;
+        }
       }
     }
 
-    if (dataObject.status && dataObject.status.toUpperCase() === 'RESIGNED' && dataObject.effectivedate) {
-      // Logic for handling resignation dates
+    // Set script properties for logging effective dates of resignations/vacancies
+    if ((dataObject.status === 'VACANT' || dataObject.status === 'RESIGNED') && dataObject.effectivedate) {
       PropertiesService.getScriptProperties().setProperties({
         'pendingEffectiveDatePosId': dataObject.positionid.toUpperCase(),
         'pendingEffectiveDate': dataObject.effectivedate
       });
     }
-
     if (dataObject.startdateinposition) {
       PropertiesService.getScriptProperties().setProperty('overrideTimestamp', dataObject.startdateinposition);
     }
 
-    const keyMap = {};
-    headers.forEach((header, i) => {
-      const key = header.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-g]/gi, '');
-      keyMap[key] = i;
-    });
-
+    // --- Main Add/Edit Logic ---
     if (mode === 'add') {
       const newRowData = Array(headers.length).fill('');
       for (const key in dataObject) {
-        if (keyMap.hasOwnProperty(key)) {
-          newRowData[keyMap[key]] = dataObject[key];
-        }
+        if (keyMap.hasOwnProperty(key)) newRowData[keyMap[key]] = dataObject[key];
       }
       mainSheet.appendRow(newRowData);
     } else if (mode === 'edit') {
       const positionId = dataObject.positionid;
       const positionIdColValues = mainSheet.getRange("A2:A").getValues();
-      let rowIndex = -1;
-      for (let i = 0; i < positionIdColValues.length; i++) {
-        if (positionIdColValues[i][0] == positionId) {
-          rowIndex = i + 2;
-          break;
-        }
-      }
-      if (rowIndex === -1) {
-        throw new Error(`Position ID ${positionId} not found for editing.`);
-      }
+      const rowIndex = positionIdColValues.findIndex(r => r[0] == positionId) + 2;
+      if (rowIndex === 1) throw new Error(`Position ID ${positionId} not found for editing.`);
 
       const rangeToUpdate = mainSheet.getRange(rowIndex, 1, 1, headers.length);
       const existingRowData = rangeToUpdate.getValues()[0];
-      
-      const originalStatus = existingRowData[statusColIndex - 1];
-      const newStatus = dataObject.status;
-      const newEmployeeId = dataObject.employeeid;
-      const newEmployeeName = dataObject.employeename;
+      const statusColIndex = keyMap['status'];
+      const originalStatus = existingRowData[statusColIndex];
 
-      if (originalStatus && originalStatus.toUpperCase() === 'VACANT' && newStatus.toUpperCase() !== 'VACANT' && newEmployeeId) {
-        // Auto-reassign reports when a vacancy is filled
-        const filledPositionId = dataObject.positionid;
+      // DEFINITIVE GHOST TENURE FIX:
+      // If the row in the sheet is currently VACANT, we must strictly control what data is written.
+      if (originalStatus && originalStatus.toUpperCase() === 'VACANT') {
+        // An action is considered "filling the vacancy" only if it provides a new status AND a new employee ID.
+        const isFillingAction = dataObject.status && dataObject.status.toUpperCase() !== 'VACANT' && dataObject.employeeid;
+
+        if (!isFillingAction) {
+          // If NOT filling the vacancy, this is an edit to other fields of a vacant row.
+          // FORCE the employee data in the incoming object to be blank, overriding any ghost data from the client.
+          dataObject.employeeid = '';
+          dataObject.employeename = '';
+          dataObject.gender = '';
+          dataObject.datehired = '';
+          dataObject.contractenddate = '';
+          dataObject.status = 'VACANT'; // Also force the status to be VACANT.
+        }
+      }
+
+      // Now, apply the (potentially scrubbed) data from the client to the row data.
+      for (const key in dataObject) {
+        if (keyMap.hasOwnProperty(key)) {
+          existingRowData[keyMap[key]] = dataObject[key];
+        }
+      }
+
+      // Auto-reassignment logic for when a vacancy has just been filled.
+      const newStatus = existingRowData[statusColIndex];
+      if (originalStatus && originalStatus.toUpperCase() === 'VACANT' && newStatus && newStatus.toUpperCase() !== 'VACANT') {
+        const newEmployeeId = existingRowData[keyMap['employeeid']];
+        const newEmployeeName = existingRowData[keyMap['employeename']];
         const allData = mainSheet.getDataRange().getValues();
-        const currentHeaders = allData[0];
-        const reportingToIdIndex = currentHeaders.indexOf('Reporting to ID');
-        const reportingToNameIndex = currentHeaders.indexOf('Reporting to');
-
-        if (reportingToIdIndex !== -1 && reportingToNameIndex !== -1) {
-          for (let i = 1; i < allData.length; i++) {
-            const reportRow = allData[i];
-            const reportCurrentManagerId = reportRow[reportingToIdIndex] ? String(reportRow[reportingToIdIndex]).trim() : '';
-
-            if (reportCurrentManagerId === filledPositionId) {
-              const reportSheetRowIndex = i + 1;
-              mainSheet.getRange(reportSheetRowIndex, reportingToIdIndex + 1).setValue(newEmployeeId);
-              mainSheet.getRange(reportSheetRowIndex, reportingToNameIndex + 1).setValue(newEmployeeName);
-            }
+        const reportingToIdIndex = keyMap['reportingtoid'];
+        const reportingToNameIndex = keyMap['reportingto'];
+        for (let i = 1; i < allData.length; i++) {
+          if (allData[i][reportingToIdIndex] === positionId) {
+            mainSheet.getRange(i + 1, reportingToIdIndex + 1).setValue(newEmployeeId);
+            mainSheet.getRange(i + 1, reportingToNameIndex + 1).setValue(newEmployeeName);
           }
         }
       }
 
-      for (const key in dataObject) {
-        if (keyMap.hasOwnProperty(key)) {
-          const colIndex = keyMap[key];
-          existingRowData[colIndex] = dataObject[key];
-        }
-      }
       rangeToUpdate.setValues([existingRowData]);
     }
 
     SpreadsheetApp.flush();
-    // IMPORTANT: We call logDataChanges() to log the primary event (e.g., the promotion itself).
-    // The vacating event has already been logged manually.
     logDataChanges();
-
     return "Data saved successfully.";
   } catch (e) {
     Logger.log('Error in saveEmployeeData: ' + e.message + ' Stack: ' + e.stack);
@@ -1464,12 +1373,12 @@ function generateIncumbencyReport() {
 
 /**
  * =================================================================================================
- * FINAL REWRITE v6 - calculateIncumbencyEngine
+ * FINAL REWRITE v9 - calculateIncumbencyEngine
  * =================================================================================================
- * This is a complete, procedural rewrite of the engine from scratch.
- * It abandons all previous flawed logic (reducing, finding, etc.)
- * It uses a simple loop to walk the complete timeline and builds the history record by record.
- * This method is robust and correctly handles ALL previously reported bugs.
+ * This version correctly identifies the end of a tenure by recognizing "effective-dated" events
+ * (like promotions/resignations) as definitive termination points. It also correctly handles
+ * subsequent "ghost" log entries that might occur for an employee after their tenure has
+ * officially ended, preventing these from creating incorrect history records.
  * =================================================================================================
  */
 function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
@@ -1514,7 +1423,8 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         incumbentId: (row[empIdIndex] || '').toString().trim() || null,
         incumbentName: (row[nameIndex] || '').toString().trim() || 'N/A',
         jobTitle: (row[jobTitleIndex] || '').toString().trim() || 'N/A',
-        hireDate: _parseDate(row[hireDateIndex])
+        hireDate: _parseDate(row[hireDateIndex]),
+        isEffective: !!_parseDate(row[effectiveDateIndex])
       }))
       .filter(e => e.eventDate)
       .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
@@ -1530,25 +1440,44 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         continue;
       }
 
-      let endEvent = null;
-      let endEventIndex = -1;
-      for (let j = i + 1; j < allChangeEventsForPos.length; j++) {
-        if (allChangeEventsForPos[j].incumbentId !== startEvent.incumbentId) {
-          endEvent = allChangeEventsForPos[j];
-          endEventIndex = j;
-          break;
-        }
-      }
-
-      const lastEventOfThisTenure = endEvent ? allChangeEventsForPos[endEventIndex - 1] : allChangeEventsForPos[allChangeEventsForPos.length - 1];
-      const endDate = endEvent ? lastEventOfThisTenure.eventDate : null;
-
       let startDate = startEvent.eventDate;
       if (startEvent.hireDate && startEvent.hireDate.getTime() < startEvent.eventDate.getTime()) {
         if (isFirstEverEventForEmployee(startEvent.incumbentId, startEvent.eventDate, allLogData)) {
           startDate = startEvent.hireDate;
         }
       }
+
+      let endDate = null;
+      let tenureEndingEvent = null;
+      let nextEventIndex = i + 1;
+
+      for (let j = i; j < allChangeEventsForPos.length; j++) {
+        const currentEvent = allChangeEventsForPos[j];
+
+        if (currentEvent.incumbentId !== startEvent.incumbentId) {
+          endDate = currentEvent.eventDate;
+          tenureEndingEvent = currentEvent;
+          nextEventIndex = j;
+          break;
+        }
+
+        if (currentEvent.isEffective && currentEvent.incumbentId === startEvent.incumbentId) {
+          endDate = currentEvent.eventDate;
+          tenureEndingEvent = currentEvent;
+          let k = j + 1;
+          while (k < allChangeEventsForPos.length && allChangeEventsForPos[k].incumbentId === startEvent.incumbentId) {
+            k++;
+          }
+          nextEventIndex = k;
+          break;
+        }
+      }
+
+      if (!tenureEndingEvent) {
+        nextEventIndex = allChangeEventsForPos.length;
+      }
+
+      const lastEventOfThisTenure = allChangeEventsForPos[nextEventIndex - 1];
 
       historyRecords.push({
         startDate: startDate,
@@ -1559,7 +1488,7 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         hireDate: startEvent.hireDate
       });
 
-      i = endEvent ? endEventIndex : allChangeEventsForPos.length;
+      i = nextEventIndex;
     }
 
     const changeCount = historyRecords.length;
