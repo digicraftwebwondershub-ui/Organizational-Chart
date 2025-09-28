@@ -1279,6 +1279,20 @@ function saveEmployeeData(dataObject, mode) {
       
       const originalStatus = existingRowData[statusColIndex - 1];
       const newStatus = dataObject.status;
+
+      // If the position being edited is currently vacant, and the incoming edit is NOT
+      // explicitly filling the position (i.e., newStatus is also 'VACANT' or undefined),
+      // then we must scrub all employee-related fields from the incoming dataObject.
+      // This prevents "ghost" data from the client-side model from being
+      // written back into a vacant row, which would create erroneous log entries.
+      if (originalStatus && originalStatus.toUpperCase() === 'VACANT' && (!newStatus || newStatus.toUpperCase() === 'VACANT')) {
+        dataObject.employeeid = '';
+        dataObject.employeename = '';
+        dataObject.gender = '';
+        dataObject.datehired = '';
+        dataObject.contractenddate = '';
+        dataObject.status = 'VACANT'; // Ensure status is explicitly set
+      }
       const newEmployeeId = dataObject.employeeid;
       const newEmployeeName = dataObject.employeename;
 
@@ -1464,12 +1478,12 @@ function generateIncumbencyReport() {
 
 /**
  * =================================================================================================
- * FINAL REWRITE v6 - calculateIncumbencyEngine
+ * FINAL REWRITE v9 - calculateIncumbencyEngine
  * =================================================================================================
- * This is a complete, procedural rewrite of the engine from scratch.
- * It abandons all previous flawed logic (reducing, finding, etc.)
- * It uses a simple loop to walk the complete timeline and builds the history record by record.
- * This method is robust and correctly handles ALL previously reported bugs.
+ * This version correctly identifies the end of a tenure by recognizing "effective-dated" events
+ * (like promotions/resignations) as definitive termination points. It also correctly handles
+ * subsequent "ghost" log entries that might occur for an employee after their tenure has
+ * officially ended, preventing these from creating incorrect history records.
  * =================================================================================================
  */
 function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
@@ -1514,7 +1528,8 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         incumbentId: (row[empIdIndex] || '').toString().trim() || null,
         incumbentName: (row[nameIndex] || '').toString().trim() || 'N/A',
         jobTitle: (row[jobTitleIndex] || '').toString().trim() || 'N/A',
-        hireDate: _parseDate(row[hireDateIndex])
+        hireDate: _parseDate(row[hireDateIndex]),
+        isEffective: !!_parseDate(row[effectiveDateIndex])
       }))
       .filter(e => e.eventDate)
       .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
@@ -1530,25 +1545,44 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         continue;
       }
 
-      let endEvent = null;
-      let endEventIndex = -1;
-      for (let j = i + 1; j < allChangeEventsForPos.length; j++) {
-        if (allChangeEventsForPos[j].incumbentId !== startEvent.incumbentId) {
-          endEvent = allChangeEventsForPos[j];
-          endEventIndex = j;
-          break;
-        }
-      }
-
-      const lastEventOfThisTenure = endEvent ? allChangeEventsForPos[endEventIndex - 1] : allChangeEventsForPos[allChangeEventsForPos.length - 1];
-      const endDate = endEvent ? lastEventOfThisTenure.eventDate : null;
-
       let startDate = startEvent.eventDate;
       if (startEvent.hireDate && startEvent.hireDate.getTime() < startEvent.eventDate.getTime()) {
         if (isFirstEverEventForEmployee(startEvent.incumbentId, startEvent.eventDate, allLogData)) {
           startDate = startEvent.hireDate;
         }
       }
+
+      let endDate = null;
+      let tenureEndingEvent = null;
+      let nextEventIndex = i + 1;
+
+      for (let j = i; j < allChangeEventsForPos.length; j++) {
+        const currentEvent = allChangeEventsForPos[j];
+
+        if (currentEvent.incumbentId !== startEvent.incumbentId) {
+          endDate = currentEvent.eventDate;
+          tenureEndingEvent = currentEvent;
+          nextEventIndex = j;
+          break;
+        }
+
+        if (currentEvent.isEffective && currentEvent.incumbentId === startEvent.incumbentId) {
+          endDate = currentEvent.eventDate;
+          tenureEndingEvent = currentEvent;
+          let k = j + 1;
+          while (k < allChangeEventsForPos.length && allChangeEventsForPos[k].incumbentId === startEvent.incumbentId) {
+            k++;
+          }
+          nextEventIndex = k;
+          break;
+        }
+      }
+
+      if (!tenureEndingEvent) {
+        nextEventIndex = allChangeEventsForPos.length;
+      }
+
+      const lastEventOfThisTenure = allChangeEventsForPos[nextEventIndex - 1];
 
       historyRecords.push({
         startDate: startDate,
@@ -1559,7 +1593,7 @@ function calculateIncumbencyEngine(allLogData, headers, mainDataMap) {
         hireDate: startEvent.hireDate
       });
 
-      i = endEvent ? endEventIndex : allChangeEventsForPos.length;
+      i = nextEventIndex;
     }
 
     const changeCount = historyRecords.length;
