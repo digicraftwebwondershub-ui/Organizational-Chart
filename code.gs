@@ -1169,7 +1169,30 @@ function saveEmployeeData(dataObject, mode) {
       for (const key in dataObject) {
         if (keyMap.hasOwnProperty(key)) newRowData[keyMap[key]] = dataObject[key];
       }
-      mainSheet.appendRow(newRowData);
+
+      const newPositionId = dataObject.positionid;
+      let insertRowIndex = -1;
+
+      if (newPositionId) {
+        const positionIdPrefix = newPositionId.substring(0, newPositionId.lastIndexOf('-'));
+        if (positionIdPrefix) {
+          const positionIdColValues = mainSheet.getRange("A1:A").getValues().flat();
+          for (let i = positionIdColValues.length - 1; i > 0; i--) {
+            const currentPositionId = positionIdColValues[i];
+            if (currentPositionId && currentPositionId.startsWith(positionIdPrefix)) {
+              insertRowIndex = i + 1;
+              break;
+            }
+          }
+        }
+      }
+
+      if (insertRowIndex !== -1) {
+        mainSheet.insertRowAfter(insertRowIndex);
+        mainSheet.getRange(insertRowIndex + 1, 1, 1, newRowData.length).setValues([newRowData]);
+      } else {
+        mainSheet.appendRow(newRowData);
+      }
     } else if (mode === 'edit') {
       const positionId = dataObject.positionid;
       const positionIdColValues = mainSheet.getRange("A2:A").getValues();
