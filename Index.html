@@ -629,22 +629,24 @@
         <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Gender</h3>
         <div id="gender_chart_div" style="width: 100%; height: 400px;"></div>
       </div>
-      <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Status</h3>
-        <div id="status_chart_div" style="width: 100%; height: 400px;"></div>
-      </div>
-       <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Contract Type</h3>
-        <div id="contract_chart_div" style="width: 100%; height: 400px;"></div>
-      </div>
-       <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Job Group</h3>
-        <div id="job_group_chart_div" style="width: 100%; height: 400px;"></div>
-      </div>
-       <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Length of Service</h3>
-        <div id="los_chart_div" style="width: 100%; height: 400px;"></div>
-      </div>
+    </div>
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Status</h3>
+            <div id="status_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Contract Type</h3>
+            <div id="contract_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Job Group</h3>
+            <div id="job_group_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Employees by Length of Service</h3>
+            <div id="los_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
     </div>
   </div>
 </div> <!-- Close app -->
@@ -777,19 +779,21 @@
             return { data: google.visualization.arrayToDataTable(dataArray), isNoData: false, sortedKeys: sortedKeys };
         };
 
-        // Draw Status Chart (3D Pie)
-        const statusChartDataResult = createPieChartData(data.statusCounts);
-        const statusChart = new google.visualization.PieChart(document.getElementById('status_chart_div'));
-        statusChart.draw(statusChartDataResult.data, {
+        // REVISED: Draw Status Chart (3D Column)
+        const statusDataArray = [['Status', 'Count', { role: 'annotation' }]];
+        if(Object.keys(data.statusCounts).length) {
+            Object.entries(data.statusCounts).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, value]) => statusDataArray.push([key, value, value]));
+        } else {
+            statusDataArray.push(['No Data', 0, 0]);
+        }
+        const statusData = google.visualization.arrayToDataTable(statusDataArray);
+        const statusChart = new google.visualization.ColumnChart(document.getElementById('status_chart_div'));
+        statusChart.draw(statusData, {
             is3D: true,
-            legend: { 
-                position: 'labeled', 
-                textStyle: { color: 'black', bold: true, italic: true } 
-            },
-            pieSliceText: 'none',
-            tooltip: { text: 'value' },
-            chartArea: {'width': '100%', 'height': '90%'},
-            slices: statusChartDataResult.isNoData ? { 0: { color: 'transparent', textStyle: { color: 'transparent' } } } : {}
+            legend: { position: 'none' },
+            vAxis: { minValue: 0 },
+            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
+            colors: ['#A5D6A7']
         });
 
         // REVISED: Draw Contract Type Chart (3D Column)
@@ -805,7 +809,8 @@
             is3D: true,
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
-            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } }
+            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
+            colors: ['#009688']
         });
 
         // NEW: Draw Gender Chart (3D Pie)
@@ -845,7 +850,8 @@
             is3D: true,
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
-            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } }
+            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
+            colors: ['#F48FB1']
         });
         
         // NEW: Draw Length of Service Chart (3D Column)
@@ -861,7 +867,8 @@
             is3D: true,
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
-            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } }
+            annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
+            colors: ['#FFC107']
         });
 
         // Draw Headcount Trend Chart (3D Column)
