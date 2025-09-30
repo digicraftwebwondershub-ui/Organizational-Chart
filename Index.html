@@ -582,18 +582,22 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700">Division</label>
                 <div id="analytics-division-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="analytics-division-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Group</label>
                 <div id="analytics-group-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="analytics-group-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Department</label>
                 <div id="analytics-department-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="analytics-department-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Section</label>
                 <div id="analytics-section-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="analytics-section-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Job Level</label>
@@ -663,18 +667,22 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700">Division</label>
                 <div id="resignation-division-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="resignation-division-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Group</label>
                 <div id="resignation-group-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="resignation-group-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Department</label>
                 <div id="resignation-department-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="resignation-department-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Section</label>
                 <div id="resignation-section-filter-container" class="searchable-dropdown mt-1"></div>
+                <input type="hidden" id="resignation-section-filter-value" value="all">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Job Level</label>
@@ -770,6 +778,20 @@
   var statusNotes = { 'New Hire': 'This employee is new to the company.', 'Filled Vacancy': 'This employee filled a previously vacant position.', 'Internal Transfer': 'This employee transferred from another role within the company.', 'Promotion': 'This employee was promoted from another role within the company.', 'Lateral Transfer': 'This employee transferred from a similar role within the company.' };
   var statusTagColors = { 'New Hire': '#22c55e', 'Filled Vacancy': '#3b82f6', 'Internal Transfer': '#8b5cf6', 'Promotion': '#f59e0b', 'Lateral Transfer': '#0ea5e9' };
 
+  const ANALYTICS_FILTERS_CONFIG = [
+    { id: 'division', containerId: 'analytics-division-filter-container', valueId: 'analytics-division-filter-value', defaultLabel: 'All Divisions', parent: null },
+    { id: 'group', containerId: 'analytics-group-filter-container', valueId: 'analytics-group-filter-value', defaultLabel: 'All Groups', parent: 'division' },
+    { id: 'department', containerId: 'analytics-department-filter-container', valueId: 'analytics-department-filter-value', defaultLabel: 'All Departments', parent: 'group' },
+    { id: 'section', containerId: 'analytics-section-filter-container', valueId: 'analytics-section-filter-value', defaultLabel: 'All Sections', parent: 'department' }
+  ];
+
+  const RESIGNATION_FILTERS_CONFIG = [
+    { id: 'division', containerId: 'resignation-division-filter-container', valueId: 'resignation-division-filter-value', defaultLabel: 'All Divisions', parent: null },
+    { id: 'group', containerId: 'resignation-group-filter-container', valueId: 'resignation-group-filter-value', defaultLabel: 'All Groups', parent: 'division' },
+    { id: 'department', containerId: 'resignation-department-filter-container', valueId: 'resignation-department-filter-value', defaultLabel: 'All Departments', parent: 'group' },
+    { id: 'section', containerId: 'resignation-section-filter-container', valueId: 'resignation-section-filter-value', defaultLabel: 'All Sections', parent: 'department' }
+  ];
+
   // --- INITIALIZATION ---
   google.charts.load('current', { packages: ['orgchart', 'corechart'] });
   google.charts.setOnLoadCallback(fetchData);
@@ -799,37 +821,110 @@
     }
   }
   
-  function populateAnalyticsFilters() {
-    const lists = dropdownListData;
-    const refreshCallback = () => drawAnalyticsCharts(true);
+  // --- REFACTORED GENERIC FILTER LOGIC ---
 
-    createSearchableDropdown('analytics-division-filter-container', ['All Divisions', ...lists.divisions], null, null, refreshCallback);
-    createSearchableDropdown('analytics-group-filter-container', ['All Groups', ...lists.groups], null, null, refreshCallback);
-    createSearchableDropdown('analytics-department-filter-container', ['All Departments', ...lists.departments], null, null, refreshCallback);
-    createSearchableDropdown('analytics-section-filter-container', ['All Sections', ...lists.sections], null, null, refreshCallback);
-    createSearchableDropdown('analytics-joblevel-filter-container', ['All Job Levels', ...lists.joblevel], null, null, refreshCallback);
-    createSearchableDropdown('analytics-pos-status-filter-container', ['All Statuses', 'Active', 'Inactive'], null, null, refreshCallback);
-    createSearchableDropdown('analytics-gender-filter-container', ['All Genders', 'Male', 'Female'], null, null, refreshCallback);
-    createSearchableDropdown('analytics-jobtitle-filter-container', ['All Job Titles', ...lists.jobtitle], null, null, refreshCallback);
+  // Generic function to populate filters for a given tab.
+  function populateTabFilters(config) {
+    let sourceData = fullEmployeeData;
+
+    // Handle dependent location filters
+    config.dependent.forEach(filterConfig => {
+        const currentValue = document.getElementById(filterConfig.valueId).value;
+        const options = [filterConfig.defaultLabel, ...new Set(sourceData.map(e => e[filterConfig.id]).filter(String).sort())];
+
+        createSearchableDropdown(filterConfig.containerId, options, null, null, (selection) => {
+            const newValue = (selection === filterConfig.defaultLabel) ? 'all' : selection;
+            if (document.getElementById(filterConfig.valueId).value !== newValue) {
+                document.getElementById(filterConfig.valueId).value = newValue;
+
+                // Reset children filters
+                let childIdToReset = filterConfig.id;
+                let childConfig = config.dependent.find(f => f.parent === childIdToReset);
+                while (childConfig) {
+                    document.getElementById(childConfig.valueId).value = 'all';
+                    childIdToReset = childConfig.id;
+                    childConfig = config.dependent.find(f => f.parent === childIdToReset);
+                }
+
+                // Use setTimeout to break the call stack and prevent infinite recursion
+                setTimeout(() => {
+                    config.populateFunc();
+                    config.drawChartFunc(true);
+                }, 0);
+            }
+        });
+        setSearchableDropdownValue(filterConfig.containerId, currentValue === 'all' ? filterConfig.defaultLabel : currentValue);
+
+        if (currentValue !== 'all') {
+            sourceData = sourceData.filter(emp => emp[filterConfig.id] === currentValue);
+        }
+    });
+
+    // Handle non-dependent filters
+    const lists = dropdownListData;
+    const refreshCallback = () => config.drawChartFunc(true);
+    config.nonDependent.forEach(filterConfig => {
+        const dropdownOptions = [filterConfig.defaultLabel, ...filterConfig.options(lists)];
+        createSearchableDropdown(filterConfig.containerId, dropdownOptions, null, null, refreshCallback);
+    });
+  }
+
+  // Generic function to reset filters.
+  function resetTabFilters(config) {
+    config.dependent.forEach(filterConfig => {
+        document.getElementById(filterConfig.valueId).value = 'all';
+    });
+
+    config.nonDependent.forEach(filterConfig => {
+        const input = document.querySelector(`#${filterConfig.containerId} .searchable-dropdown-input`);
+        if (input) input.value = filterConfig.defaultLabel;
+    });
     
-    document.getElementById('analytics-reset-filters-btn').addEventListener('click', resetAnalyticsFilters);
-    analyticsFiltersPopulated = true;
+    config.populateFunc();
+    config.drawChartFunc(true);
+  }
+
+  // Configuration objects for each tab's filters
+  const ANALYTICS_FILTERS_CONFIG_OBJ = {
+    populateFunc: populateAnalyticsFilters,
+    drawChartFunc: drawAnalyticsCharts,
+    dependent: ANALYTICS_FILTERS_CONFIG,
+    nonDependent: [
+        { containerId: 'analytics-joblevel-filter-container', defaultLabel: 'All Job Levels', options: (lists) => lists.joblevel || [] },
+        { containerId: 'analytics-pos-status-filter-container', defaultLabel: 'All Statuses', options: () => ['Active', 'Inactive'] },
+        { containerId: 'analytics-gender-filter-container', defaultLabel: 'All Genders', options: () => ['Male', 'Female'] },
+        { containerId: 'analytics-jobtitle-filter-container', defaultLabel: 'All Job Titles', options: (lists) => lists.jobtitle || [] }
+    ]
+  };
+
+  const RESIGNATION_FILTERS_CONFIG_OBJ = {
+      populateFunc: populateResignationFilters,
+      drawChartFunc: drawResignationCharts,
+      dependent: RESIGNATION_FILTERS_CONFIG,
+      nonDependent: [
+          { containerId: 'resignation-joblevel-filter-container', defaultLabel: 'All Job Levels', options: (lists) => lists.joblevel || [] },
+          { containerId: 'resignation-gender-filter-container', defaultLabel: 'All Genders', options: () => ['Male', 'Female'] },
+          { containerId: 'resignation-jobtitle-filter-container', defaultLabel: 'All Job Titles', options: (lists) => lists.jobtitle || [] },
+          { containerId: 'resignation-year-filter-container', defaultLabel: 'All Years', options: () => {
+              const currentYear = new Date().getFullYear();
+              return Array.from({length: 11}, (_, i) => (currentYear - i).toString());
+          }},
+          { containerId: 'resignation-month-filter-container', defaultLabel: 'All Months', options: () => ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] }
+      ]
+  };
+
+  // --- END REFACTORED GENERIC FILTER LOGIC ---
+
+  function populateAnalyticsFilters() {
+      populateTabFilters(ANALYTICS_FILTERS_CONFIG_OBJ);
+      if (!analyticsFiltersPopulated) {
+        document.getElementById('analytics-reset-filters-btn').addEventListener('click', resetAnalyticsFilters);
+        analyticsFiltersPopulated = true;
+      }
   }
   
   function resetAnalyticsFilters() {
-      const filterContainers = [
-          'analytics-division-filter-container', 'analytics-group-filter-container', 
-          'analytics-department-filter-container', 'analytics-section-filter-container',
-          'analytics-joblevel-filter-container', 'analytics-pos-status-filter-container',
-          'analytics-gender-filter-container', 'analytics-jobtitle-filter-container'
-      ];
-      filterContainers.forEach(id => {
-          const input = document.querySelector(`#${id} .searchable-dropdown-input`);
-          if (input) {
-              input.value = input.nextElementSibling.firstChild.textContent; // Set to the "All..." option
-          }
-      });
-      drawAnalyticsCharts(true);
+      resetTabFilters(ANALYTICS_FILTERS_CONFIG_OBJ);
   }
 
   function drawAnalyticsCharts(forceRefresh = false) {
@@ -846,10 +941,10 @@
     document.querySelector('#analytics-headcount-card p').textContent = '--';
 
     const filters = {
-      division: document.querySelector('#analytics-division-filter-container .searchable-dropdown-input').value,
-      group: document.querySelector('#analytics-group-filter-container .searchable-dropdown-input').value,
-      department: document.querySelector('#analytics-department-filter-container .searchable-dropdown-input').value,
-      section: document.querySelector('#analytics-section-filter-container .searchable-dropdown-input').value,
+      division: document.getElementById('analytics-division-filter-value').value,
+      group: document.getElementById('analytics-group-filter-value').value,
+      department: document.getElementById('analytics-department-filter-value').value,
+      section: document.getElementById('analytics-section-filter-value').value,
       jobLevel: document.querySelector('#analytics-joblevel-filter-container .searchable-dropdown-input').value,
       positionStatus: document.querySelector('#analytics-pos-status-filter-container .searchable-dropdown-input').value,
       gender: document.querySelector('#analytics-gender-filter-container .searchable-dropdown-input').value,
@@ -893,7 +988,7 @@
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
             annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
-            colors: ['#A5D6A7']
+            colors: ['#98FB98']
         });
 
         // REVISED: Draw Contract Type Chart (3D Column)
@@ -910,7 +1005,7 @@
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
             annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
-            colors: ['#009688']
+            colors: ['#008080']
         });
 
         // NEW: Draw Gender Chart (3D Pie)
@@ -951,7 +1046,7 @@
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
             annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
-            colors: ['#F48FB1']
+            colors: ['#FFD1DC']
         });
         
         // NEW: Draw Length of Service Chart (3D Column)
@@ -968,7 +1063,7 @@
             legend: { position: 'none' },
             vAxis: { minValue: 0 },
             annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } },
-            colors: ['#FFC107']
+            colors: ['#FFDB58']
         });
 
         // Draw Headcount Trend Chart (3D Column)
@@ -997,49 +1092,15 @@
   }
 
   function populateResignationFilters() {
-    const lists = dropdownListData;
-    const refreshCallback = () => drawResignationCharts(true);
-
-    createSearchableDropdown('resignation-division-filter-container', ['All Divisions', ...lists.divisions], null, null, refreshCallback);
-    createSearchableDropdown('resignation-group-filter-container', ['All Groups', ...lists.groups], null, null, refreshCallback);
-    createSearchableDropdown('resignation-department-filter-container', ['All Departments', ...lists.departments], null, null, refreshCallback);
-    createSearchableDropdown('resignation-section-filter-container', ['All Sections', ...lists.sections], null, null, refreshCallback);
-    createSearchableDropdown('resignation-joblevel-filter-container', ['All Job Levels', ...lists.joblevel], null, null, refreshCallback);
-    createSearchableDropdown('resignation-gender-filter-container', ['All Genders', 'Male', 'Female'], null, null, refreshCallback);
-    createSearchableDropdown('resignation-jobtitle-filter-container', ['All Job Titles', ...lists.jobtitle], null, null, refreshCallback);
-
-    const currentYear = new Date().getFullYear();
-    const years = ['All Years'];
-    for (let y = currentYear; y >= currentYear - 10; y--) {
-        years.push(y.toString());
-    }
-    const months = ['All Months', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-    createSearchableDropdown('resignation-year-filter-container', years, null, null, refreshCallback);
-    createSearchableDropdown('resignation-month-filter-container', months, null, null, refreshCallback);
-
-    document.getElementById('resignation-reset-filters-btn').addEventListener('click', resetResignationFilters);
-    resignationFiltersPopulated = true;
+      populateTabFilters(RESIGNATION_FILTERS_CONFIG_OBJ);
+      if (!resignationFiltersPopulated) {
+        document.getElementById('resignation-reset-filters-btn').addEventListener('click', resetResignationFilters);
+        resignationFiltersPopulated = true;
+      }
   }
 
   function resetResignationFilters() {
-      const filterContainers = [
-          'resignation-division-filter-container', 'resignation-group-filter-container',
-          'resignation-department-filter-container', 'resignation-section-filter-container',
-          'resignation-joblevel-filter-container', 'resignation-gender-filter-container',
-          'resignation-jobtitle-filter-container', 'resignation-year-filter-container',
-          'resignation-month-filter-container'
-      ];
-      filterContainers.forEach(id => {
-          const input = document.querySelector(`#${id} .searchable-dropdown-input`);
-          if (input) {
-              const list = input.nextElementSibling;
-              if (list && list.firstChild) {
-                  input.value = list.firstChild.textContent;
-              }
-          }
-      });
-      drawResignationCharts(true);
+      resetTabFilters(RESIGNATION_FILTERS_CONFIG_OBJ);
   }
 
   function drawResignationCharts(forceRefresh = false) {
@@ -1053,10 +1114,10 @@
     });
 
     const filters = {
-      division: document.querySelector('#resignation-division-filter-container .searchable-dropdown-input').value,
-      group: document.querySelector('#resignation-group-filter-container .searchable-dropdown-input').value,
-      department: document.querySelector('#resignation-department-filter-container .searchable-dropdown-input').value,
-      section: document.querySelector('#resignation-section-filter-container .searchable-dropdown-input').value,
+      division: document.getElementById('resignation-division-filter-value').value,
+      group: document.getElementById('resignation-group-filter-value').value,
+      department: document.getElementById('resignation-department-filter-value').value,
+      section: document.getElementById('resignation-section-filter-value').value,
       jobLevel: document.querySelector('#resignation-joblevel-filter-container .searchable-dropdown-input').value,
       gender: document.querySelector('#resignation-gender-filter-container .searchable-dropdown-input').value,
       jobTitle: document.querySelector('#resignation-jobtitle-filter-container .searchable-dropdown-input').value,
