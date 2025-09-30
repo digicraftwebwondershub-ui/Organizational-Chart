@@ -380,6 +380,11 @@
           <label id="effective-date-label" class="block font-medium mt-2"></label>
           <input type="date" id="effectivedate" name="effectivedate" class="mt-1 p-2 w-full border rounded">
         </div>
+        <div id="reasonforleaving-wrapper" style="display: none;">
+            <label class="block font-medium mt-2">Reason for Leaving <span class="text-red-500">*</span></label>
+            <div id="reasonforleaving-dropdown-container" class="searchable-dropdown"></div>
+            <input type="hidden" id="reasonforleaving" name="reasonforleaving">
+        </div>
         <label class="block font-medium mt-2">Gender</label>
         <div id="gender-dropdown-container" class="searchable-dropdown"></div>
         <input type="hidden" id="gender" name="gender">
@@ -454,7 +459,8 @@
   <div class="border-b border-gray-200 mb-6">
     <nav class="flex -mb-px" aria-label="Tabs">
       <div onclick="switchTab('org-chart')" id="tab-org-chart" class="tab active">Org Chart</div>
-      <div onclick="switchTab('analytics')" id="tab-analytics" class="tab">Analytics</div>
+      <div onclick="switchTab('analytics')" id="tab-analytics" class="tab">Demographics</div>
+      <div onclick="switchTab('resignation')" id="tab-resignation" class="tab">Resignation</div>
     </nav>
   </div>
 
@@ -649,12 +655,99 @@
         </div>
     </div>
   </div>
+
+  <!-- Resignation View -->
+  <div id="resignation-view" class="tab-content">
+    <div class="p-4 sm:p-6 rounded-lg mb-6 bg-white shadow-md">
+        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Division</label>
+                <div id="resignation-division-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Group</label>
+                <div id="resignation-group-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Department</label>
+                <div id="resignation-department-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Section</label>
+                <div id="resignation-section-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Job Level</label>
+                <div id="resignation-joblevel-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Gender</label>
+                <div id="resignation-gender-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Job Title</label>
+                <div id="resignation-jobtitle-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Year</label>
+                <div id="resignation-year-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+             <div>
+                <label class="block text-sm font-medium text-gray-700">Month</label>
+                <div id="resignation-month-filter-container" class="searchable-dropdown mt-1"></div>
+            </div>
+        </div>
+        <div class="flex justify-end items-start gap-4">
+            <button id="resignation-reset-filters-btn" class="bg-slate-700 text-white py-2 px-4 rounded-lg hover:bg-slate-800">Reset Filters</button>
+            <button onclick="drawResignationCharts(true)" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 font-semibold flex items-center">
+                <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5"></path></svg>
+                Refresh Data
+            </button>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Monthly Separations</h3>
+            <div id="monthly_turnover_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Reason for Leaving</h3>
+            <div id="reason_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Resignation by Gender</h3>
+            <div id="resignation_gender_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Resignation by Contract Type</h3>
+            <div id="resignation_contract_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Resignation by Division</h3>
+            <div id="resignation_division_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Resignation by Job Group</h3>
+            <div id="resignation_job_group_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Yearly Hires and Leavers</h3>
+            <div id="hires_leavers_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+         <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">YTD Turnover Rate</h3>
+            <div id="ytd_turnover_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+    </div>
+  </div>
 </div> <!-- Close app -->
 
 <script>
   // --- GLOBAL VARIABLES ---
   var analyticsDataLoaded = false;
+  var resignationDataLoaded = false;
   var analyticsFiltersPopulated = false;
+  var resignationFiltersPopulated = false;
   var fullEmployeeData = [];
   var previousHeadcountData = {};
   var dropdownListData = {};
@@ -696,6 +789,13 @@
       if (!analyticsDataLoaded) {
         drawAnalyticsCharts();
       }
+    } else if (tabId === 'resignation') {
+        if (!resignationFiltersPopulated) {
+            populateResignationFilters();
+        }
+        if (!resignationDataLoaded) {
+            drawResignationCharts();
+        }
     }
   }
   
@@ -894,6 +994,165 @@
         document.getElementById('analytics-view').innerHTML = `<p class="text-red-500">Could not load analytics data. Error: ${err.message}</p>`;
       })
       .getAnalyticsData(filters);
+  }
+
+  function populateResignationFilters() {
+    const lists = dropdownListData;
+    const refreshCallback = () => drawResignationCharts(true);
+
+    createSearchableDropdown('resignation-division-filter-container', ['All Divisions', ...lists.divisions], null, null, refreshCallback);
+    createSearchableDropdown('resignation-group-filter-container', ['All Groups', ...lists.groups], null, null, refreshCallback);
+    createSearchableDropdown('resignation-department-filter-container', ['All Departments', ...lists.departments], null, null, refreshCallback);
+    createSearchableDropdown('resignation-section-filter-container', ['All Sections', ...lists.sections], null, null, refreshCallback);
+    createSearchableDropdown('resignation-joblevel-filter-container', ['All Job Levels', ...lists.joblevel], null, null, refreshCallback);
+    createSearchableDropdown('resignation-gender-filter-container', ['All Genders', 'Male', 'Female'], null, null, refreshCallback);
+    createSearchableDropdown('resignation-jobtitle-filter-container', ['All Job Titles', ...lists.jobtitle], null, null, refreshCallback);
+
+    const currentYear = new Date().getFullYear();
+    const years = ['All Years'];
+    for (let y = currentYear; y >= currentYear - 10; y--) {
+        years.push(y.toString());
+    }
+    const months = ['All Months', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    createSearchableDropdown('resignation-year-filter-container', years, null, null, refreshCallback);
+    createSearchableDropdown('resignation-month-filter-container', months, null, null, refreshCallback);
+
+    document.getElementById('resignation-reset-filters-btn').addEventListener('click', resetResignationFilters);
+    resignationFiltersPopulated = true;
+  }
+
+  function resetResignationFilters() {
+      const filterContainers = [
+          'resignation-division-filter-container', 'resignation-group-filter-container',
+          'resignation-department-filter-container', 'resignation-section-filter-container',
+          'resignation-joblevel-filter-container', 'resignation-gender-filter-container',
+          'resignation-jobtitle-filter-container', 'resignation-year-filter-container',
+          'resignation-month-filter-container'
+      ];
+      filterContainers.forEach(id => {
+          const input = document.querySelector(`#${id} .searchable-dropdown-input`);
+          if (input) {
+              const list = input.nextElementSibling;
+              if (list && list.firstChild) {
+                  input.value = list.firstChild.textContent;
+              }
+          }
+      });
+      drawResignationCharts(true);
+  }
+
+  function drawResignationCharts(forceRefresh = false) {
+    if (resignationDataLoaded && !forceRefresh) return;
+    resignationDataLoaded = true;
+
+    // Show loaders in all chart divs
+    const chartDivs = ['monthly_turnover_chart_div', 'reason_chart_div', 'resignation_gender_chart_div', 'resignation_contract_chart_div', 'resignation_division_chart_div', 'resignation_job_group_chart_div', 'hires_leavers_chart_div', 'ytd_turnover_chart_div'];
+    chartDivs.forEach(id => {
+        document.getElementById(id).innerHTML = '<div class="flex justify-center items-center h-full"><div id="loader"></div></div>';
+    });
+
+    const filters = {
+      division: document.querySelector('#resignation-division-filter-container .searchable-dropdown-input').value,
+      group: document.querySelector('#resignation-group-filter-container .searchable-dropdown-input').value,
+      department: document.querySelector('#resignation-department-filter-container .searchable-dropdown-input').value,
+      section: document.querySelector('#resignation-section-filter-container .searchable-dropdown-input').value,
+      jobLevel: document.querySelector('#resignation-joblevel-filter-container .searchable-dropdown-input').value,
+      gender: document.querySelector('#resignation-gender-filter-container .searchable-dropdown-input').value,
+      jobTitle: document.querySelector('#resignation-jobtitle-filter-container .searchable-dropdown-input').value,
+      year: document.querySelector('#resignation-year-filter-container .searchable-dropdown-input').value,
+      month: document.querySelector('#resignation-month-filter-container .searchable-dropdown-input').value,
+    };
+
+    google.script.run
+        .withSuccessHandler(function(data) {
+
+            // Draw Reason for Leaving Chart (3D Horizontal Bar)
+            const reasonDataArray = [['Reason', 'Count', { role: 'annotation' }]];
+            if(Object.keys(data.reasonCounts).length) {
+                Object.entries(data.reasonCounts).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, value]) => reasonDataArray.push([key, value, value]));
+            } else { reasonDataArray.push(['No Data', 0, 0]); }
+            const reasonData = google.visualization.arrayToDataTable(reasonDataArray);
+            const reasonChart = new google.visualization.BarChart(document.getElementById('reason_chart_div'));
+            reasonChart.draw(reasonData, { is3D: true, colors: ['#6B7280'], legend: { position: 'none' }, annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } } });
+
+            // Draw Resignation by Gender (3D Pie)
+            const genderDataArray = [['Gender', 'Count']];
+            if(Object.keys(data.resignationGenderCounts).length) {
+                Object.entries(data.resignationGenderCounts).forEach(([key, value]) => genderDataArray.push([key, value]));
+            } else { genderDataArray.push(['No Data', 0]); }
+            const genderData = google.visualization.arrayToDataTable(genderDataArray);
+            const genderChart = new google.visualization.PieChart(document.getElementById('resignation_gender_chart_div'));
+            genderChart.draw(genderData, { is3D: true, colors: ['#EF4444', '#3B82F6'], legend: { position: 'right', textStyle: { color: 'black', fontSize: 12 } } });
+
+            // Draw Resignation by Contract Type (3D Horizontal Bar)
+            const contractDataArray = [['Contract Type', 'Count', { role: 'annotation' }]];
+            if(Object.keys(data.resignationContractCounts).length) {
+                Object.entries(data.resignationContractCounts).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, value]) => contractDataArray.push([key, value, value]));
+            } else { contractDataArray.push(['No Data', 0, 0]); }
+            const contractData = google.visualization.arrayToDataTable(contractDataArray);
+            const contractChart = new google.visualization.BarChart(document.getElementById('resignation_contract_chart_div'));
+            contractChart.draw(contractData, { is3D: true, colors: ['#10B981'], legend: { position: 'none' }, annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } } });
+
+            // Draw Resignation by Division (3D Column)
+            const divisionDataArray = [['Division', 'Count', { role: 'annotation' }]];
+            if(Object.keys(data.resignationDivisionCounts).length) {
+                Object.entries(data.resignationDivisionCounts).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, value]) => divisionDataArray.push([key, value, value]));
+            } else { divisionDataArray.push(['No Data', 0, 0]); }
+            const divisionData = google.visualization.arrayToDataTable(divisionDataArray);
+            const divisionChart = new google.visualization.ColumnChart(document.getElementById('resignation_division_chart_div'));
+            divisionChart.draw(divisionData, { is3D: true, colors: ['#8B5CF6'], legend: { position: 'none' }, vAxis: { minValue: 0 }, annotations: { textStyle: { fontSize: 12, color: '#212121', auraColor: 'none' } } });
+
+            // Draw Resignation by Job Group (3D Pie)
+            const jobGroupDataArray = [['Job Group', 'Count']];
+            if(Object.keys(data.resignationJobGroupCounts).length) {
+                Object.entries(data.resignationJobGroupCounts).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, value]) => jobGroupDataArray.push([key, value]));
+            } else { jobGroupDataArray.push(['No Data', 0]); }
+            const jobGroupData = google.visualization.arrayToDataTable(jobGroupDataArray);
+            const jobGroupChart = new google.visualization.PieChart(document.getElementById('resignation_job_group_chart_div'));
+            jobGroupChart.draw(jobGroupData, { is3D: true, colors: ['#F59E0B', '#14B8A6', '#EC4899', '#6366F1', '#84CC16'], legend: { position: 'right', textStyle: { color: 'black', fontSize: 12 } } });
+
+            // Draw Monthly Turnover Rate (3D Combo Chart)
+            const turnoverData = new google.visualization.DataTable();
+            turnoverData.addColumn('string', 'Month');
+            turnoverData.addColumn('number', 'Separations');
+            turnoverData.addColumn({type: 'string', role: 'annotation'});
+            turnoverData.addColumn('number', 'Turnover Rate');
+            data.monthlyTurnover.forEach(d => {
+                turnoverData.addRow([d.month, d.separations, d.separations.toString(), d.rate]);
+            });
+            const turnoverChart = new google.visualization.ComboChart(document.getElementById('monthly_turnover_chart_div'));
+            turnoverChart.draw(turnoverData, {
+                is3D: true,
+                seriesType: 'bars',
+                series: {1: {type: 'line', color: '#EF4444', targetAxisIndex: 1}},
+                vAxes: { 0: {title: 'Number of Separations', minValue: 0}, 1: {title: 'Rate (%)', minValue: 0, format: '#.##'}},
+                legend: { position: 'top' },
+                colors: ['#3B82F6']
+            });
+
+            // Draw Yearly Hires and Leavers Chart (3D Pie)
+            const hiresLeaversData = google.visualization.arrayToDataTable([
+                ['Category', 'Count'],
+                ['Hires', data.yearlyHiresLeavers.hires || 0],
+                ['Leavers', data.yearlyHiresLeavers.leavers || 0]
+            ]);
+            const hiresLeaversChart = new google.visualization.PieChart(document.getElementById('hires_leavers_chart_div'));
+            hiresLeaversChart.draw(hiresLeaversData, { is3D: true, colors: ['#22C55E', '#F97316'] });
+
+            // Draw YTD Turnover Chart (3D Column)
+            const ytdTurnoverData = google.visualization.arrayToDataTable([
+                ['Year', 'YTD Turnover Rate (%)', { role: 'annotation' }],
+                [filters.year || new Date().getFullYear().toString(), data.ytdTurnover, data.ytdTurnover.toString() + '%']
+            ]);
+            const ytdTurnoverChart = new google.visualization.ColumnChart(document.getElementById('ytd_turnover_chart_div'));
+            ytdTurnoverChart.draw(ytdTurnoverData, { is3D: true, colors: ['#D946EF'], legend: { position: 'none' }, vAxis: { title: 'Rate (%)', minValue: 0, format: '#.##' } });
+
+        })
+        .withFailureHandler(function(err) {
+            document.getElementById('resignation-view').innerHTML = `<p class="text-red-500">Could not load resignation data. Error: ${err.message}</p>`;
+        })
+        .getResignationData(filters);
   }
 
   function generateMasterlist() {
@@ -1916,17 +2175,26 @@ function renderNotifications(data) {
       const showResignedDate = selUpper === 'RESIGNED';
       const showVacantDate = selUpper === 'VACANT' && document.getElementById('form-mode').value === 'edit';
 
+      const reasonWrapper = document.getElementById('reasonforleaving-wrapper');
+      const reasonInput = document.getElementById('reasonforleaving');
+
       if (showResignedDate) {
         effectiveDateLabel.innerHTML = 'Effective Resignation Date <span class="text-red-500">*</span>';
         effectiveDateWrapper.style.display = 'block';
         effectiveDateInput.required = true;
+        reasonWrapper.style.display = 'block';
+        reasonInput.required = true;
       } else if (showVacantDate) {
         effectiveDateLabel.innerHTML = 'Effective Date Position Became Vacant <span class="text-red-500">*</span>';
         effectiveDateWrapper.style.display = 'block';
         effectiveDateInput.required = true;
+        reasonWrapper.style.display = 'none';
+        reasonInput.required = false;
       } else {
         effectiveDateWrapper.style.display = 'none';
         effectiveDateInput.required = false;
+        reasonWrapper.style.display = 'none';
+        reasonInput.required = false;
       }
 
       if (selUpper === 'VACANT') {
@@ -1945,6 +2213,7 @@ function renderNotifications(data) {
       startDateInput.required = showStartDateField;
     });
     createSearchableDropdown('gender-dropdown-container', ['Male', 'Female'], null, null, (sel) => { document.getElementById('gender').value = sel; });
+    createSearchableDropdown('reasonforleaving-dropdown-container', dropdownListData.reasonforleaving || [], null, null, (sel) => { document.getElementById('reasonforleaving').value = sel; });
     createSearchableDropdown('positionstatus-dropdown-container', ['Active', 'Inactive'], null, null, (sel) => { document.getElementById('positionstatus').value = sel; });
     
     createSearchableDropdown('reportingto-dropdown-container', dropdownListData.managers || [], 'name', 'id', handleManagerSelection);
@@ -2115,7 +2384,8 @@ function renderNotifications(data) {
       gender: document.getElementById('gender').value,
       positionstatus: document.getElementById('positionstatus').value,
       datehired: document.getElementById('datehired').value,
-      startdateinposition: document.getElementById('startdateinposition').value
+      startdateinposition: document.getElementById('startdateinposition').value,
+      reasonforleaving: document.getElementById('reasonforleaving').value
     };
     const originalStatus = document.getElementById('original-status').value;
 
@@ -2156,6 +2426,11 @@ function renderNotifications(data) {
       return;
     }
     
+    if (data.status.toUpperCase() === 'RESIGNED' && !data.reasonforleaving) {
+        alert('Please select a "Reason for Leaving" before saving.');
+        return;
+    }
+
     if (data.contracttype && data.contracttype.toUpperCase() === 'JPRO' && !data.contractenddate) {
         alert('Please provide the Contract End Date for JPRO employees.');
         return;
