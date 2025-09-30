@@ -1047,6 +1047,8 @@ function getListsForDropdowns() {
     const headers = refData.shift();
     headers.forEach((header, colIndex) => {
       if (header) {
+        // Standardize the key: lowercase, remove spaces and special chars.
+        // This handles "Reason for Leaving" -> "reasonforleaving"
         const key = header.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/gi, '');
         const values = refData.map(row => row[colIndex]).filter(String).sort();
         staticLists[key] = values;
@@ -1124,6 +1126,41 @@ function saveEmployeeData(dataObject, mode) {
       if (typeof dataObject[key] === 'string') {
         dataObject[key] = dataObject[key].toUpperCase();
       }
+    }
+
+    // --- NEW: Resignation Data Logging ---
+    if (mode === 'edit' && dataObject.status === 'RESIGNED') {
+      let resignationSheet = ss.getSheetByName('Resignation Data');
+      if (!resignationSheet) {
+        resignationSheet = ss.insertSheet('Resignation Data');
+        const resignationHeaders = [
+          'Timestamp', 'Position ID', 'Employee ID', 'Employee Name',
+          'Division', 'Group', 'Department', 'Section', 'Job Title',
+          'Level', 'Job Level', 'Gender', 'Contract Type', 'Date Hired', 'Resignation Date', 'Reason for Leaving'
+        ];
+        resignationSheet.appendRow(resignationHeaders);
+        resignationSheet.setFrozenRows(1);
+      }
+
+      const resignedEmployeeData = [
+        new Date(),
+        dataObject.positionid,
+        dataObject.employeeid,
+        dataObject.employeename,
+        dataObject.division,
+        dataObject.group,
+        dataObject.department,
+        dataObject.section,
+        dataObject.jobtitle,
+        dataObject.level,
+        dataObject.joblevel,
+        dataObject.gender,
+        dataObject.contracttype,
+        dataObject.datehired,
+        dataObject.effectivedate,
+        dataObject.reasonforleaving || ''
+      ];
+      resignationSheet.appendRow(resignedEmployeeData);
     }
 
     // --- Promotion/Transfer Logic (Vacates the old position) ---
@@ -2006,4 +2043,84 @@ function getJobDescription(positionId) {
     Logger.log(`Error in getJobDescription: ${e.toString()}`);
     throw new Error(`Could not retrieve job description. Error: ${e.message}`);
   }
+}
+
+function getResignationData(filters) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const mainSheet = ss.getSheets()[0];
+  const resignationSheet = ss.getSheetByName('Resignation Data');
+
+  const emptyResult = { reasonCounts: {}, resignationGenderCounts: {}, resignationContractCounts: {}, resignationDivisionCounts: {}, resignationJobGroupCounts: {}, monthlyTurnover: [], yearlyHiresLeavers: { hires: 0, leavers: 0 }, ytdTurnover: 0 };
+
+  if (!mainSheet || mainSheet.getLastRow() < 2) return emptyResult;
+
+  const mainData = mainSheet.getRange(2, 1, mainSheet.getLastRow() - 1, mainSheet.getLastColumn()).getValues();
+  const mainHeaders = mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0];
+  const dateHiredIndex = mainHeaders.indexOf('Date Hired');
+
+  if (!resignationSheet || resignationSheet.getLastRow() < 2) return emptyResult;
+
+  const resignationData = resignationSheet.getRange(2, 1, resignationSheet.getLastRow() - 1, resignationSheet.getLastColumn()).getValues();
+  const resignationHeaders = resignationSheet.getRange(1, 1, 1, resignationSheet.getLastColumn()).getValues()[0];
+  const resHeaderMap = new Map(resignationHeaders.map((h, i) => [h.trim(), i]));
+
+  const jobGroupMapping = { 1: 'Executives', 2: 'Director', 3: 'Managerial', 4: 'Supervisory', 5: 'Rank & File', 6: 'Jobcon' };
+  const selectedYear = (filters.year && filters.year !== 'All Years') ? parseInt(filters.year) : new Date().getFullYear();
+
+  const filteredResignations = resignationData.filter(row => {
+    const resDate = new Date(row[resHeaderMap.get('Resignation Date')]);
+    if (filters.year && filters.year !== 'All Years' && resDate.getFullYear() != filters.year) return false;
+    if (filters.month && filters.month !== 'All Months') {
+        const monthIndex = new Date(Date.parse(filters.month +" 1, 2012")).getMonth();
+        if (resDate.getMonth() != monthIndex) return false;
+    }
+    // Apply other filters
+    if (filters.division && filters.division !== 'All Divisions' && row[resHeaderMap.get('Division')] !== filters.division) return false;
+    if (filters.group && filters.group !== 'All Groups' && row[resHeaderMap.get('Group')] !== filters.group) return false;
+    if (filters.department && filters.department !== 'All Departments' && row[resHeaderMap.get('Department')] !== filters.department) return false;
+    if (filters.section && filters.section !== 'All Sections' && row[resHeaderMap.get('Section')] !== filters.section) return false;
+    if (filters.jobLevel && filters.jobLevel !== 'All Job Levels' && row[resHeaderMap.get('Job Level')] !== filters.jobLevel) return false;
+    if (filters.gender && filters.gender !== 'All Genders' && row[resHeaderMap.get('Gender')] !== filters.gender) return false;
+    if (filters.jobTitle && filters.jobTitle !== 'All Job Titles' && row[resHeaderMap.get('Job Title')] !== filters.jobTitle) return false;
+    return true;
+  });
+
+  const reasonCounts = {}, resignationGenderCounts = {}, resignationContractCounts = {}, resignationDivisionCounts = {}, resignationJobGroupCounts = {};
+  filteredResignations.forEach(row => {
+    reasonCounts[row[resHeaderMap.get('Reason for Leaving')] || 'Unknown'] = (reasonCounts[row[resHeaderMap.get('Reason for Leaving')] || 'Unknown'] || 0) + 1;
+    resignationGenderCounts[row[resHeaderMap.get('Gender')] || 'Unknown'] = (resignationGenderCounts[row[resHeaderMap.get('Gender')] || 'Unknown'] || 0) + 1;
+    resignationContractCounts[row[resHeaderMap.get('Contract Type')] || 'Unknown'] = (resignationContractCounts[row[resHeaderMap.get('Contract Type')] || 'Unknown'] || 0) + 1;
+    resignationDivisionCounts[row[resHeaderMap.get('Division')] || 'Unknown'] = (resignationDivisionCounts[row[resHeaderMap.get('Division')] || 'Unknown'] || 0) + 1;
+    resignationJobGroupCounts[jobGroupMapping[row[resHeaderMap.get('Level')]] || 'Unknown'] = (resignationJobGroupCounts[jobGroupMapping[row[resHeaderMap.get('Level')]] || 'Unknown'] || 0) + 1;
+  });
+
+  const leaversThisYear = resignationData.filter(r => new Date(r[resHeaderMap.get('Resignation Date')]).getFullYear() === selectedYear);
+  const hiresThisYear = mainData.filter(r => r[dateHiredIndex] && new Date(r[dateHiredIndex]).getFullYear() === selectedYear);
+
+  const endOfYearHeadcount = mainData.length;
+  const startOfYearHeadcount = endOfYearHeadcount - hiresThisYear.length + leaversThisYear.length;
+  const averageHeadcount = (startOfYearHeadcount + endOfYearHeadcount) / 2;
+
+  const ytdTurnover = averageHeadcount > 0 ? (leaversThisYear.length / averageHeadcount) * 100 : 0;
+
+  const monthlyTurnover = Array(12).fill(null).map((_, month) => {
+    const monthlySeparations = leaversThisYear.filter(r => new Date(r[resHeaderMap.get('Resignation Date')]).getMonth() === month).length;
+    const monthlyRate = averageHeadcount > 0 ? (monthlySeparations / averageHeadcount) * 100 : 0;
+    return {
+      month: new Date(selectedYear, month, 1).toLocaleString('default', { month: 'short' }),
+      separations: monthlySeparations,
+      rate: parseFloat(monthlyRate.toFixed(2))
+    };
+  });
+
+  return {
+    reasonCounts,
+    resignationGenderCounts,
+    resignationContractCounts,
+    resignationDivisionCounts,
+    resignationJobGroupCounts,
+    monthlyTurnover,
+    yearlyHiresLeavers: { hires: hiresThisYear.length, leavers: leaversThisYear.length },
+    ytdTurnover: parseFloat(ytdTurnover.toFixed(2))
+  };
 }
