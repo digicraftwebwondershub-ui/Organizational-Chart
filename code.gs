@@ -2101,7 +2101,15 @@ function getAnalyticsData(filters) {
       const contract = (row[contractIndex] || 'Unknown').toString().trim();
       contractCounts[contract] = (contractCounts[contract] || 0) + 1;
       
-      const gender = (row[genderIndex] || 'Unknown').toString().trim();
+      const rawGender = (row[genderIndex] || 'Unknown').toString().trim().toLowerCase();
+      let gender;
+      if (rawGender === 'male') {
+        gender = 'Male';
+      } else if (rawGender === 'female') {
+        gender = 'Female';
+      } else {
+        gender = 'Unknown';
+      }
       genderCounts[gender] = (genderCounts[gender] || 0) + 1;
       
       const level = row[levelIndex];
